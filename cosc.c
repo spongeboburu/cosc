@@ -25,7 +25,7 @@
 #include "cosc.h"
 
 #ifdef COSC_NOSTDLIB
-static void *cosc_memcpy(void *restrict dest, const void *restrict src, cosc_int32 n)
+static void *cosc_memcpy(void *dest, const void *src, cosc_int32 n)
 {
     for (cosc_int32 i = 0; i < n; i++)
         ((unsigned char *)dest)[i] = ((const unsigned char *)src)[i];
@@ -58,34 +58,34 @@ static cosc_int32 cosc_memcmp(const void *a, const void *b, cosc_int32 n)
 #endif
 
 inline static void cosc_store_uint32(
-    unsigned char *buffer,
+    void *buffer,
     cosc_uint32 value
 )
 {
 #ifdef COSC_NOSWAP
-    buffer[0] = ((const unsigned char *)(&value))[0];
-    buffer[1] = ((const unsigned char *)(&value))[1];
-    buffer[2] = ((const unsigned char *)(&value))[2];
-    buffer[3] = ((const unsigned char *)(&value))[3];
+    ((unsigned char *)buffer)[0] = ((const unsigned char *)(&value))[0];
+    ((unsigned char *)buffer)[1] = ((const unsigned char *)(&value))[1];
+    ((unsigned char *)buffer)[2] = ((const unsigned char *)(&value))[2];
+    ((unsigned char *)buffer)[3] = ((const unsigned char *)(&value))[3];
 #else
-    buffer[0] = (value & 0xff000000) >> 24;
-    buffer[1] = (value & 0xff0000) >> 16;
-    buffer[2] = (value & 0xff00) >> 8;
-    buffer[3] = value & 0xff;
+    ((unsigned char *)buffer)[0] = (value & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[1] = (value & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[2] = (value & 0xff00) >> 8;
+    ((unsigned char *)buffer)[3] = value & 0xff;
 #endif
 }
 
 inline static cosc_uint32 cosc_load_uint32(
-    const unsigned char *buffer
+    const void *buffer
 )
 {
 #ifdef COSC_NOSWAP
-    union { unsigned char in[4]; cosc_uint32 out; } tmp;
-    tmp.in[0] = buffer[0];
-    tmp.in[1] = buffer[1];
-    tmp.in[2] = buffer[2];
-    tmp.in[3] = buffer[3];
-    return tmp.out;
+    cosc_uint32 tmp;
+    ((unsigned char *)(&tmp))[0] = ((const unsigned char *)buffer)[0];
+    ((unsigned char *)(&tmp))[1] = ((const unsigned char *)buffer)[1];
+    ((unsigned char *)(&tmp))[2] = ((const unsigned char *)buffer)[2];
+    ((unsigned char *)(&tmp))[3] = ((const unsigned char *)buffer)[3];
+    return tmp;
 #else
     return (
         ((cosc_uint32)((const unsigned char *)buffer)[0] << 24)
@@ -97,7 +97,7 @@ inline static cosc_uint32 cosc_load_uint32(
 }
 
 inline static void cosc_store_int32(
-    unsigned char *buffer,
+    void *buffer,
     cosc_int32 value
 )
 {
@@ -106,7 +106,7 @@ inline static void cosc_store_int32(
 }
 
 inline static cosc_int32 cosc_load_int32(
-    const unsigned char *buffer
+    const void *buffer
 )
 {
     union { cosc_uint32 in; cosc_int32 out; } tmp = {cosc_load_uint32(buffer)};
@@ -114,7 +114,7 @@ inline static cosc_int32 cosc_load_int32(
 }
 
 inline static void cosc_store_float32(
-    unsigned char *buffer,
+    void *buffer,
     cosc_float32 value
 )
 {
@@ -127,7 +127,7 @@ inline static void cosc_store_float32(
 }
 
 inline static cosc_float32 cosc_load_float32(
-    const unsigned char *buffer
+    const void *buffer
 )
 {
     union { cosc_uint32 in; cosc_float32 out; } tmp = {cosc_load_uint32(buffer)};
@@ -135,60 +135,60 @@ inline static cosc_float32 cosc_load_float32(
 }
 
 inline static void cosc_store_uint64(
-    unsigned char *buffer,
+    void *buffer,
     cosc_uint64 value
 )
 {
 #ifdef COSC_NOSWAP
-    buffer[0] = ((const unsigned char *)(&value))[0];
-    buffer[1] = ((const unsigned char *)(&value))[1];
-    buffer[2] = ((const unsigned char *)(&value))[2];
-    buffer[3] = ((const unsigned char *)(&value))[3];
-    buffer[4] = ((const unsigned char *)(&value))[4];
-    buffer[5] = ((const unsigned char *)(&value))[5];
-    buffer[6] = ((const unsigned char *)(&value))[6];
-    buffer[7] = ((const unsigned char *)(&value))[7];
+    ((unsigned char *)buffer)[0] = ((const unsigned char *)(&value))[0];
+    ((unsigned char *)buffer)[1] = ((const unsigned char *)(&value))[1];
+    ((unsigned char *)buffer)[2] = ((const unsigned char *)(&value))[2];
+    ((unsigned char *)buffer)[3] = ((const unsigned char *)(&value))[3];
+    ((unsigned char *)buffer)[4] = ((const unsigned char *)(&value))[4];
+    ((unsigned char *)buffer)[5] = ((const unsigned char *)(&value))[5];
+    ((unsigned char *)buffer)[6] = ((const unsigned char *)(&value))[6];
+    ((unsigned char *)buffer)[7] = ((const unsigned char *)(&value))[7];
 #else
 #ifdef COSC_NO64
-    buffer[0] = (value.hi & 0xff000000) >> 24;
-    buffer[1] = (value.hi & 0xff0000) >> 16;
-    buffer[2] = (value.hi & 0xff00) >> 8;
-    buffer[3] = value.hi & 0xff;
-    buffer[4] = (value.lo & 0xff000000) >> 24;
-    buffer[5] = (value.lo & 0xff0000) >> 16;
-    buffer[6] = (value.lo & 0xff00) >> 8;
-    buffer[7] = value.lo & 0xff;
+    ((unsigned char *)buffer)[0] = (value.hi & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[1] = (value.hi & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[2] = (value.hi & 0xff00) >> 8;
+    ((unsigned char *)buffer)[3] = value.hi & 0xff;
+    ((unsigned char *)buffer)[4] = (value.lo & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[5] = (value.lo & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[6] = (value.lo & 0xff00) >> 8;
+    ((unsigned char *)buffer)[7] = value.lo & 0xff;
 #else
-    buffer[0] = (value & 0xff00000000000000ULL) >> 56;
-    buffer[1] = (value & 0xff000000000000ULL) >> 48;
-    buffer[2] = (value & 0xff0000000000ULL) >> 40;
-    buffer[3] = (value & 0xff00000000ULL) >> 32;
-    buffer[4] = (value & 0xff000000) >> 24;
-    buffer[5] = (value & 0xff0000) >> 16;
-    buffer[6] = (value & 0xff00) >> 8;
-    buffer[7] = value & 0xff;
+    ((unsigned char *)buffer)[0] = (value & 0xff00000000000000ULL) >> 56;
+    ((unsigned char *)buffer)[1] = (value & 0xff000000000000ULL) >> 48;
+    ((unsigned char *)buffer)[2] = (value & 0xff0000000000ULL) >> 40;
+    ((unsigned char *)buffer)[3] = (value & 0xff00000000ULL) >> 32;
+    ((unsigned char *)buffer)[4] = (value & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[5] = (value & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[6] = (value & 0xff00) >> 8;
+    ((unsigned char *)buffer)[7] = value & 0xff;
 #endif
 #endif
 }
 
 inline static cosc_uint64 cosc_load_uint64(
-    const unsigned char *buffer
+    const void *buffer
 )
 {
 #ifdef COSC_NOSWAP
-    union { unsigned char in[8]; cosc_uint64 out; } tmp;
-    tmp.in[0] = buffer[0];
-    tmp.in[1] = buffer[1];
-    tmp.in[2] = buffer[2];
-    tmp.in[3] = buffer[3];
-    tmp.in[4] = buffer[4];
-    tmp.in[5] = buffer[5];
-    tmp.in[6] = buffer[6];
-    tmp.in[7] = buffer[7];
-    return tmp.out;
+    cosc_uint64 tmp;
+    ((unsigned char *)(&tmp))[0] = ((const unsigned char *)buffer)[0];
+    ((unsigned char *)(&tmp))[1] = ((const unsigned char *)buffer)[1];
+    ((unsigned char *)(&tmp))[2] = ((const unsigned char *)buffer)[2];
+    ((unsigned char *)(&tmp))[3] = ((const unsigned char *)buffer)[3];
+    ((unsigned char *)(&tmp))[4] = ((const unsigned char *)buffer)[4];
+    ((unsigned char *)(&tmp))[5] = ((const unsigned char *)buffer)[5];
+    ((unsigned char *)(&tmp))[6] = ((const unsigned char *)buffer)[6];
+    ((unsigned char *)(&tmp))[7] = ((const unsigned char *)buffer)[7];
+    return tmp;
 #else
 #ifdef COSC_NO64
-    struct cosc_64bits tmp = {cosc_load_uint32(buffer), cosc_load_uint32(buffer + 4)};
+    struct cosc_64bits tmp = {cosc_load_uint32(buffer), cosc_load_uint32((const char *)buffer + 4)};
     return tmp;
 #else
     return (
@@ -206,7 +206,7 @@ inline static cosc_uint64 cosc_load_uint64(
 }
 
 inline static void cosc_store_int64(
-    unsigned char *buffer,
+    void *buffer,
     cosc_int64 value
 )
 {
@@ -219,7 +219,7 @@ inline static void cosc_store_int64(
 }
 
 inline static cosc_int64 cosc_load_int64(
-    const unsigned char *buffer
+    const void *buffer
 )
 {
 #ifdef COSC_NO64
@@ -231,7 +231,7 @@ inline static cosc_int64 cosc_load_int64(
 }
 
 inline static void cosc_store_float64(
-    unsigned char *buffer,
+    void *buffer,
     cosc_float64 value
 )
 {
@@ -244,7 +244,7 @@ inline static void cosc_store_float64(
 }
 
 inline static cosc_float64 cosc_load_float64(
-    const unsigned char *buffer
+    const void *buffer
 )
 {
 #ifdef COSC_NO64
@@ -833,7 +833,7 @@ cosc_int32 cosc_signature_match(
     sz = cosc_read_string(buffer, size, &len);
     if (sz < 0)
         return sz;
-    if (cosc_pattern_match(buffer, sz, apattern, apattern_n)
+    if (cosc_pattern_match((const char *)buffer, sz, apattern, apattern_n)
         && cosc_pattern_match((const char *)buffer + sz, size - sz, tpattern, tpattern_n))
         return 1;
     return 0;
@@ -1378,7 +1378,11 @@ cosc_int32 cosc_write_value(
 )
 {
 #ifdef COSC_NO64
+#ifdef __cplusplus
+    static const struct cosc_64bits zero64 = {};
+#else
     static const struct cosc_64bits zero64 = {0};
+#endif
 #endif
     if (buffer)
     {
@@ -1421,7 +1425,7 @@ cosc_int32 cosc_write_value(
         case 'd': return 8;
         case 's':
         case 'S': return cosc_write_string(0, 0, value ? value->s.s : 0, value ? value->s.length : 0);
-        case 'b': return  cosc_write_string(0, 0, value ? value->b.b : 0, value ? value->b.size : 0);
+        case 'b': return  cosc_write_blob(0, 0, value ? value->b.b : 0, value ? value->b.size : 0);
         case 'T':
         case 'F':
         case 'N':
@@ -1452,7 +1456,7 @@ cosc_int32 cosc_read_value(
     case 'S':
         if (value)
         {
-            value->s.s = buffer;
+            value->s.s = (const char *)buffer;
             return cosc_read_string(buffer, size, &value->s.length);
         }
         return cosc_read_string(buffer, size, 0);
@@ -1640,7 +1644,12 @@ cosc_int32 cosc_write_message(
 )
 {
     cosc_int32 req = 0, sz;
+#ifdef __cplusplus
+    struct cosc_message tmp_message = {};
+#else
     struct cosc_message tmp_message = {0};
+#endif
+
     if (!message)
         message = &tmp_message;
     if (buffer)
@@ -1794,10 +1803,10 @@ cosc_int32 cosc_value_dump(
     case 't': return snprintf(s, n, "0x%08x %08x", value->t.hi, value->t.lo);
     case 'd': return snprintf(s, n, "0x%08x %08x", value->d.hi, value->d.lo);
 #else
-    case 'h': return snprintf(s, n, "%"PRId64, value->h);
-    case 't': return snprintf(s, n, "%"PRIu64, value->t);
+    case 'h': return snprintf(s, n, "%" PRId64, value->h);
+    case 't': return snprintf(s, n, "%" PRIu64, value->t);
 #ifdef COSC_NOFLOAT64
-    case 'd': return snprintf(s, n, "0x%"PRIx64, value->d);
+    case 'd': return snprintf(s, n, "0x%" PRIx64, value->d);
 #else
     case 'd': return snprintf(s, n, "%f", value->d);
 #endif
