@@ -22,9 +22,9 @@ jobs:
       - name: Build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCOSC_ENABLE_SANITIZERS=ON
-          cmake --build build --config Debug --parallel --target cosc-static
-          cmake --build build --config Debug --parallel --target cosc-shared
-          cmake --build build --config Debug --parallel --target unit_tests
+          make cosc-static
+          make cosc-shared
+          make -j 4 unit_tests
           ctest --output-on-failure
   unit-tests-android-arm64:
     name: Android arm64-v8a (build only)
@@ -36,10 +36,9 @@ jobs:
       - name: Build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Debug -DANDROID_ABI=arm64-v8a -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake
-          cmake --build build --config Debug --parallel --target cosc-static
-          cmake --build build --config Debug --parallel --target cosc-shared
-          cmake --build build --config Debug --parallel --target unit_tests
-          ctest --output-on-failure
+          make cosc-static
+          make cosc-shared
+          make -j 4 unit_tests
   unit-tests-windows:
     name: Windows (build & test)
     runs-on: windows-latest
@@ -65,5 +64,5 @@ jobs:
       - name: Build
         run: |
           emcmake cmake -B build -DCMAKE_BUILD_TYPE=Debug
-          emcmake cmake --build build --config Debug --parallel --target cosc-static
-          emcmake cmake --build build --config Debug --parallel --target cosc-shared
+          emmake make cosc-static
+          emmake make cosc-shared
