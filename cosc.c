@@ -341,10 +341,10 @@ static cosc_int32 cosc_strncmp(const char *a, cosc_int32 a_n, const char *b, cos
 {
     if (a_n <= 0 && b_n <= 0)
         return 0;
-    if (a_n <= 0 && *b == 0)
-        return 0;
-    if (*a == 0 && b_n <= 0)
-        return 0;
+    if (a_n <= 0 && b_n > 0 && *b != 0)
+        return -1;
+    if (b_n <= 0 && a_n > 0 && *a != 0)
+        return -1;
     for (cosc_int32 i = 0; i < a_n && i < b_n; i++)
     {
         if (a[i] < b[i])
@@ -478,13 +478,15 @@ static cosc_int32 cosc_stringset_match(
         while (end < stringset_n && stringset[end] != 0 && stringset[end] != '}' && stringset[end] != ',')
             end++;
         slen = end - len;
-        if (cosc_strncmp(stringset + len, end - len, s, s_n) == 0)
+        if (cosc_strncmp(stringset + len, slen, s, s_n) == 0)
         {
             len = end;
             while (len < stringset_n && stringset[len] != 0 && stringset[len] != '}')
                 len++;
             break;
         }
+        else
+            slen = 0;
         len = end + 1;
     }
     if (len < stringset_n && stringset[len] == '}')
@@ -881,7 +883,8 @@ cosc_int32 cosc_pattern_match(
             return 0;
     }
 
-    if ((s_offset >= s_n || s[s_offset] == 0) && (p_offset >= pattern_n || pattern[p_offset] == 0))
+    if ((s_offset >= s_n || s[s_offset] == 0)
+        && (p_offset >= pattern_n || pattern[p_offset] == 0))
         return 1;
     return 0;
 }
