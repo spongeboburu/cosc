@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   unit-tests-linux-x86_64:
-    name: Linux arm64-v8a
+    name: Linux x86_64 (build & test)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -22,10 +22,12 @@ jobs:
       - name: Build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCOSC_ENABLE_SANITIZERS=ON
+          cmake --build build --config Debug --parallel --target osc-static
+          cmake --build build --config Debug --parallel --target osc-shared
           cmake --build build --config Debug --parallel --target unit_tests
           cmake test
   unit-tests-android-arm64:
-    name: Android arm64-v8a
+    name: Android arm64-v8a (build & test)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -34,10 +36,12 @@ jobs:
       - name: Build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Debug -DANDROID_ABI=arm64-v8a -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake
+          cmake --build build --config Debug --parallel --target osc-static
+          cmake --build build --config Debug --parallel --target osc-shared
           cmake --build build --config Debug --parallel --target unit_tests
           cmake test
   unit-tests-windows:
-    name: Linux arm64-v8a
+    name: Windows (build & test)
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -46,10 +50,12 @@ jobs:
       - name: Build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --config Debug --parallel --target osc-static
+          cmake --build build --config Debug --parallel --target osc-shared
           cmake --build build --config Debug --parallel --target unit_tests
           cmake test
   build-emscripten:
-    name: Emscripten
+    name: Emscripten (build only)
     runs-on: ubuntu-latest
     container: emscripten/emsdk:3.1.41
     timeout-minutes: 15

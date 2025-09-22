@@ -23,6 +23,7 @@ cmake_minimum_required(VERSION 3.20)
 project(
     cosc
     DESCRIPTION "OSC library for C99 or C++11."
+    VERSION 0.1.0
     )
 
 option(COSC_ENABLE_CXX "Enable C++." OFF)
