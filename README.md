@@ -24,7 +24,7 @@ perhaps <https://liblo.sourceforge.net/> is a better choice.
 - Address and typetag validation.
 - Address and typetag pattern matching.
 - Timetag conversions.
-- Support 64-bit data on systems without 64-bit types.
+- Handles 64-bit data on systems without 64-bit types.
 - No dynamic allocations.
 - Use of standard library is optional.
 - Use of `stdint.h` is optional.
@@ -32,7 +32,8 @@ perhaps <https://liblo.sourceforge.net/> is a better choice.
 - Floating point types are optional.
 - Ability to typedef custom type for integer and floats.
 - C99 and C++11 compliant.
-- No optimizations relying on undefined behavior.
+- No optimizations relying on undefined behavior or assumptions
+  about alignment restrictions.
 - MIT license.
 
 *Limitations:*

@@ -558,7 +558,9 @@ COSC_API cosc_int32 cosc_pattern_validate(
  *
  * Extended syntax for typetags, not part of the OSC specification:
  *
- * - '#' match a scalar ('i', 'f', 'r', 'h', 't', 'd', and 'I').
+ * - '#' for typetags match a numeric value ('i', 'f', 'r', 'h', 't' and 'd').
+ * - '#' for addresses match a numeric, base-10 digit (0-9).
+ * - 'B' match a boolean ('T' or 'F').
  *
  * When matching addresses '#' is simply ignored.
  */

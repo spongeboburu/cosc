@@ -139,13 +139,22 @@ set_target_properties(
 
 # Shared.
 
-add_library(cosc-shared SHARED ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
-set_target_properties(
-    cosc-shared PROPERTIES
-    OUTPUT_NAME cosc
-    POSITION_INDEPENDENT_CODE TRUE
-    EXCLUDE_FROM_ALL TRUE
-    )
+if(EMSCRIPTEN)
+    add_executable(cosc-shared ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
+    set_target_properties(
+        cosc-shared PROPERTIES
+        OUTPUT_NAME cosc
+        EXCLUDE_FROM_ALL TRUE
+        )
+else()
+    add_library(cosc-shared SHARED ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
+    set_target_properties(
+        cosc-shared PROPERTIES
+        OUTPUT_NAME cosc
+        POSITION_INDEPENDENT_CODE TRUE
+        EXCLUDE_FROM_ALL TRUE
+        )
+endif()
 
 if(COSC_ENABLE_CXX)
     set_target_properties(cosc-static PROPERTIES LANGUAGE CXX CXX_STANDARD 11)
@@ -232,6 +241,7 @@ set(unit_test_names
     signature
     values
     message
+    timetag
     )
 
 foreach(unit_test_name ${unit_test_names})

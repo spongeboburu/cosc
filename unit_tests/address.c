@@ -51,6 +51,11 @@ static void test_address_match_stringset(void **state)
     assert_true(cosc_pattern_match("/hello/world", 1024, "/hello/{abc,world,xyz}", 1024));
 }
 
+static void test_address_match_digit(void **state)
+{
+    assert_true(cosc_pattern_match("/hello/0123456789/world", 1024, "/hello/##########/world", 1024));
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
@@ -61,6 +66,7 @@ int main(void)
         cmocka_unit_test(test_address_match_question),
         cmocka_unit_test(test_address_match_charset),
         cmocka_unit_test(test_address_match_stringset),
+        cmocka_unit_test(test_address_match_digit),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

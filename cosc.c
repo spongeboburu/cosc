@@ -257,7 +257,7 @@ inline static cosc_float64 cosc_load_float64(
 
 #ifdef COSC_NO64
 
-static struct cosc_64bits cosc_mul32to64(
+static struct cosc_64bits cosc_mul64(
     cosc_uint32 a,
     cosc_uint32 b
 )
@@ -296,6 +296,43 @@ static struct cosc_64bits cosc_mul32to64(
         (product[1] << 16) | product[0]
     };
     return res;
+}
+
+static void cosc_div64(struct cosc_64bits *dividend, uint32_t divisor)
+{
+    struct cosc_64bits q = {0, 0};
+    struct cosc_64bits r = {0, 0};
+    if (divisor > 0)
+    {
+        for (cosc_int32 i = 63; i >= 0; i--)
+        {
+            r.hi <<= 1;
+            r.hi |= (r.lo & 0x80000000) >> 31;
+            r.lo <<= 1;
+            if (i < 32)
+                r.lo |= (dividend->lo & (1 << i)) >> i;
+            else
+                r.lo |= (dividend->hi & (1 << (i - 32))) >> i;
+            if (r.lo >= divisor || r.hi > 0)
+            {
+                if (r.lo < divisor)
+                    r.hi--;
+                r.lo -= divisor;
+                if (i < 32)
+                    q.lo |= 1 << i;
+                else
+                    q.hi |= 1 << (i - 32);
+            }
+        }
+    }
+    *dividend = q;
+}
+
+static void cosc_add64(struct cosc_64bits *augend, uint32_t addend)
+{
+    if (addend > 0xffffffff - augend->lo)
+        augend->hi++;
+    augend->lo += addend;
 }
 
 #endif
@@ -414,6 +451,8 @@ static cosc_int32 cosc_charset_match(
     return 0;
 }
 
+#include <stdio.h> // FIXME: remove
+
 static cosc_int32 cosc_stringset_match(
     const char *s,
     cosc_int32 s_n,
@@ -441,7 +480,7 @@ static cosc_int32 cosc_stringset_match(
         slen = end - len;
         if (cosc_strncmp(stringset + len, end - len, s, s_n) == 0)
         {
-            len = end + 1;
+            len = end;
             while (len < stringset_n && stringset[len] != 0 && stringset[len] != '}')
                 len++;
             break;
@@ -729,6 +768,11 @@ cosc_int32 cosc_pattern_match(
         is_typetag = 1;
         s_offset++;
     }
+    if (pattern_n > 0 && *pattern == ',')
+    {
+        is_typetag = 1;
+        p_offset++;
+    }
     while (
         s_offset < s_n && s[s_offset] != 0
         && p_offset < pattern_n && pattern[p_offset] != 0)
@@ -757,12 +801,20 @@ cosc_int32 cosc_pattern_match(
                 case 'h':
                 case 't':
                 case 'd':
-                case 'I':
                     break;
                 default:
                     return 0;
                 }
             }
+            else if (s[s_offset] < '0' || s[s_offset] > '9')
+                return 0;
+            p_offset++;
+            s_offset++;
+        }
+        else if (pattern[p_offset] == 'B')
+        {
+            if (!is_typetag || (s[s_offset] != 'T' && s[s_offset] != 'F'))
+                return 0;
             p_offset++;
             s_offset++;
         }
@@ -801,8 +853,34 @@ cosc_int32 cosc_pattern_match(
         else
             return 0;
     }
-    while (p_offset < pattern_n && pattern[p_offset] == '*')
-        p_offset++;
+#ifndef COSC_NOARRAY
+    if (s_offset < s_n && s[s_offset] == ']')
+        s_offset++;
+#endif
+
+    while (p_offset < pattern_n)
+    {
+        if (pattern[p_offset] == '*')
+            p_offset++;
+        else if (pattern[p_offset] == '[')
+        {
+            if (!cosc_charset_match(0, pattern + p_offset, pattern_n - p_offset, &plen))
+                return 0;
+            p_offset += plen;
+        }
+        else if (pattern[p_offset] == '{')
+        {
+            if (!cosc_stringset_match("", 0,  pattern + p_offset, pattern_n - p_offset, &plen, &slen))
+                return 0;
+            s_offset += slen;
+            p_offset += plen;
+        }
+        else if (pattern[p_offset] == 0)
+            break;
+        else
+            return 0;
+    }
+
     if ((s_offset >= s_n || s[s_offset] == 0) && (p_offset >= pattern_n || pattern[p_offset] == 0))
         return 1;
     return 0;
@@ -847,8 +925,9 @@ cosc_uint32 cosc_timetag_to_time(
 #ifdef COSC_NO64
     if (nanos)
     {
-        struct cosc_64bits res = cosc_mul32to64(timetag.lo, 1000000000);
-        *nanos = res.hi; // Same as >> 32.
+        struct cosc_64bits tmp = cosc_mul64(timetag.lo, 1000000000);
+        cosc_add64(&tmp, 500000000);
+        *nanos = tmp.hi; // Same as >> 32.
     }
     return timetag.hi;
 #else
@@ -856,6 +935,7 @@ cosc_uint32 cosc_timetag_to_time(
     {
         cosc_uint64 tmp = timetag & 0xffffffff;
         tmp *= 1000000000;
+        tmp += 500000000;
         tmp >>= 32;
         *nanos = tmp;
     }
@@ -868,20 +948,18 @@ cosc_uint64 cosc_timetag_from_time(
     cosc_uint32 nanos
 )
 {
-#ifdef COSC_NO64
-    struct cosc_64bits res;
-    seconds /= 1000000000;
+    seconds += nanos / 1000000000;
     nanos %= 1000000000;
-    nanos /= 100000;
+#ifdef COSC_NO64
+    struct cosc_64bits res = {nanos, 0};
+    cosc_add64(&res, 0x20000000);
+    cosc_div64(&res, 1000000000);
     res.hi = seconds;
-    res.lo = nanos * 42949672;
     return res;
 #else
     cosc_uint64 tmp = nanos;
-    seconds += nanos / 1000000000;
-    nanos %= 1000000000;
     tmp <<= 32;
-    tmp += 0x80000000; // Round.
+    tmp += 0x20000000;
     tmp /= 1000000000;
     tmp |= (cosc_uint64)seconds << 32;
     return tmp;
@@ -1378,11 +1456,7 @@ cosc_int32 cosc_write_value(
 )
 {
 #ifdef COSC_NO64
-#ifdef __cplusplus
-    static const struct cosc_64bits zero64 = {};
-#else
-    static const struct cosc_64bits zero64 = {0};
-#endif
+    static const struct cosc_64bits zero64 = {0, 0};
 #endif
     if (buffer)
     {
@@ -1644,11 +1718,7 @@ cosc_int32 cosc_write_message(
 )
 {
     cosc_int32 req = 0, sz;
-#ifdef __cplusplus
-    struct cosc_message tmp_message = {};
-#else
-    struct cosc_message tmp_message = {0};
-#endif
+    struct cosc_message tmp_message = {0, 0, 0, 0, {0}, 0};
 
     if (!message)
         message = &tmp_message;
