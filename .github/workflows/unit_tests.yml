@@ -56,7 +56,7 @@ jobs:
           cmake --build build --config Debug --parallel --target cosc-static
           cmake --build build --config Debug --parallel --target cosc-shared
           cmake --build build --config Debug --parallel --target unit_tests
-          cmake --build build --target test
+          ctest --test-dir build
   build-emscripten:
     name: Emscripten (build only)
     runs-on: ubuntu-latest
