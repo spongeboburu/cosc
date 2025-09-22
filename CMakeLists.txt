@@ -196,6 +196,14 @@ add_dependencies(examples example_bundle)
 
 enable_testing()
 
+add_custom_target(unit_tests)
+set_target_properties(
+    unit_tests PROPERTIES
+    EXCLUDE_FROM_ALL TRUE
+    )
+
+
+if(NOT EMSCRIPTEN)
 ExternalProject_Add(
     cmocka
     URL https://cmocka.org/files/1.1/cmocka-1.1.5.tar.xz
@@ -214,12 +222,6 @@ set_target_properties(
     EXCLUDE_FROM_ALL TRUE
     )
 ExternalProject_Get_Property(cmocka install_dir)
-
-add_custom_target(unit_tests)
-set_target_properties(
-    unit_tests PROPERTIES
-    EXCLUDE_FROM_ALL TRUE
-    )
 
 function(add_unit_test unit_test_name suffix flags)
     set(executable_name unit_test_${unit_test_name}${suffix})
@@ -253,6 +255,8 @@ foreach(unit_test_name ${unit_test_names})
     add_unit_test("${unit_test_name}" "_nofloat" "-DCOSC_NOFLOAT32 -DCOSC_NOFLOAT64")
     add_unit_test("${unit_test_name}" "_no64" "-DCOSC_NO64")
 endforeach()
+
+endif() # Not emscripten
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)

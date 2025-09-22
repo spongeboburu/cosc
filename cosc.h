@@ -70,7 +70,7 @@
 
 #ifndef COSC_API
 #ifdef _MSC_VER
-#define COSC_API __declspec(export)
+#define COSC_API __declspec(dllexport)
 #else
 #define COSC_API
 #endif
