@@ -298,7 +298,9 @@ static struct cosc_64bits cosc_mul64(
     return res;
 }
 
-static void cosc_div64(struct cosc_64bits *dividend, uint32_t divisor)
+#include <stdio.h>
+
+static void cosc_div64(struct cosc_64bits *dividend, cosc_uint32 divisor)
 {
     struct cosc_64bits q = {0, 0};
     struct cosc_64bits r = {0, 0};
@@ -310,25 +312,25 @@ static void cosc_div64(struct cosc_64bits *dividend, uint32_t divisor)
             r.hi |= (r.lo & 0x80000000) >> 31;
             r.lo <<= 1;
             if (i < 32)
-                r.lo |= (dividend->lo & (1 << i)) >> i;
+                r.lo |= (dividend->lo & (1U << i)) >> i;
             else
-                r.lo |= (dividend->hi & (1 << (i - 32))) >> i;
+                r.lo |= (dividend->hi & (1U << (i - 32))) >> (i - 32);
             if (r.lo >= divisor || r.hi > 0)
             {
                 if (r.lo < divisor)
                     r.hi--;
                 r.lo -= divisor;
                 if (i < 32)
-                    q.lo |= 1 << i;
+                    q.lo |= 1U << i;
                 else
-                    q.hi |= 1 << (i - 32);
+                    q.hi |= 1U << (i - 32);
             }
         }
     }
     *dividend = q;
 }
 
-static void cosc_add64(struct cosc_64bits *augend, uint32_t addend)
+static void cosc_add64(struct cosc_64bits *augend, cosc_uint32 addend)
 {
     if (addend > 0xffffffff - augend->lo)
         augend->hi++;

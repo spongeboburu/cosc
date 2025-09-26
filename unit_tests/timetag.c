@@ -105,7 +105,7 @@ int main(void)
         cmocka_unit_test(test_timetag_to_time),
     };
 
-    // for (int i = 0; i < 999999999; i++)
+    // for (int i = 0; i < 1; i++)
     // {
     //     cosc_uint32 nanos = i, tmp;
     //     cosc_uint64 timetag = cosc_timetag_from_time(0, nanos);
@@ -113,6 +113,6 @@ int main(void)
     //     if (nanos != tmp || seconds > 0)
     //         printf("%u != %u (%u)\n", tmp, nanos, seconds);
     // }
-
+    // return 0;
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
