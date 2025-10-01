@@ -109,6 +109,8 @@ int main(int argc, char *argv[])
             return 4;
         }
 
+        printf("Message was %d bytes in size.\n", ret);
+
         // Dump the message to a string.
         char tmps[1024];
         cosc_message_dump(tmps, sizeof(tmps), &message);

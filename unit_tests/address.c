@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include "cosc.h"
 
+#ifndef COSC_NOEXTRAS
+
 static void test_address_valid(void **state)
 {
     cosc_int32 invalid = 0;
@@ -70,3 +72,10 @@ int main(void)
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
+#else
+int main(void)
+{
+    printf("COSC_NOEXTRAS defined, nothing to test.\n");
+    return 0;
+}
+#endif

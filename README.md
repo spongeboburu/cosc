@@ -24,12 +24,11 @@ perhaps <https://liblo.sourceforge.net/> is a better choice.
 - Address and typetag validation.
 - Address and typetag pattern matching.
 - Timetag conversions.
-- Handles 64-bit data on systems without 64-bit types.
+- Handle 64-bit values on systems without 64-bit types.
+- Handle floating point values on systems without floating point types.
 - No dynamic allocations.
 - Use of standard library is optional.
 - Use of `stdint.h` is optional.
-- Actual 64-bit types are optional.
-- Floating point types are optional.
 - Ability to typedef custom type for integer and floats.
 - C99 and C++11 compliant.
 - No optimizations relying on undefined behavior or assumptions
@@ -86,10 +85,11 @@ Optional:
 Defined at compile and include time:
 
 - `COSC_NOSTDLIB` for no use of the standard library.
+    This will also remove the dump functions.
+- `COSC_NOEXTRAS` to remove the address and typetag related functions.
 - `COSC_NOSWAP` for no endian swapping.
 - `COSC_NOARRAY` to remove the support for arrays.
-- `COSC_NODUMP` for not defining cosc_value_dump()
-  or cosc_message_dump() functions.
+- `COSC_NODUMP` to remove the dump functions.
 - `COSC_NOSTDINT` for no inclusion of `stdint.h`.
 - `COSC_NO64` to typedef all 64-bit types as `cosc_64bits`.
 - `COSC_NOFLOAT32` to typedef cosc_float32 as `cosc_uint32`.

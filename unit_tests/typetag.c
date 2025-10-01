@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include "cosc.h"
 
+#ifndef COSC_NOEXTRAS
+
 static void test_typetag_validate(void **state)
 {
     cosc_int32 invalid = 0;
@@ -29,23 +31,26 @@ static void test_typetag_match_equal(void **state)
 {
     assert_true(cosc_pattern_match(",ifsb", 1024, "ifsb", 1024));
     assert_true(cosc_pattern_match(",", 1024, "", 1024));
-    assert_true(cosc_pattern_match(",ifsb[fff]", 1024, "ifsbfff", 1024));
-    assert_true(cosc_pattern_match(",[iff]", 1024, "iff", 1024));
 
     assert_true(cosc_pattern_match(",ifsb", 1024, ",ifsb", 1024));
     assert_true(cosc_pattern_match(",", 1024, ",", 1024));
-    assert_true(cosc_pattern_match(",ifsb[fff]", 1024, ",ifsbfff", 1024));
-    assert_true(cosc_pattern_match(",[iff]", 1024, ",iff", 1024));
 
     assert_false(cosc_pattern_match(",ifsb", 1024, "ifsx", 1024));
     assert_false(cosc_pattern_match(",", 1024, "i", 1024));
-    assert_false(cosc_pattern_match(",ifsb[fff]", 1024, "ifsbfif", 1024));
-    assert_false(cosc_pattern_match(",[iff]", 1024, "iif", 1024));
 
     assert_false(cosc_pattern_match(",ifsb", 1024, ",ifsx", 1024));
     assert_false(cosc_pattern_match(",", 1024, ",i", 1024));
+
+#ifndef COSC_NOARRAY
+    assert_true(cosc_pattern_match(",ifsb[fff]", 1024, "ifsbfff", 1024));
+    assert_true(cosc_pattern_match(",[iff]", 1024, "iff", 1024));
+    assert_true(cosc_pattern_match(",ifsb[fff]", 1024, ",ifsbfff", 1024));
+    assert_true(cosc_pattern_match(",[iff]", 1024, ",iff", 1024));
+    assert_false(cosc_pattern_match(",ifsb[fff]", 1024, "ifsbfif", 1024));
+    assert_false(cosc_pattern_match(",[iff]", 1024, "iif", 1024));
     assert_false(cosc_pattern_match(",ifsb[fff]", 1024, ",ifsbfif", 1024));
     assert_false(cosc_pattern_match(",[iff]", 1024, ",iif", 1024));
+#endif
 }
 
 static void test_typetag_match_asterisk(void **state)
@@ -156,3 +161,11 @@ int main(void)
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
+
+#else
+int main(void)
+{
+    printf("COSC_NOEXTRAS defined, nothing to test.\n");
+    return 0;
+}
+#endif

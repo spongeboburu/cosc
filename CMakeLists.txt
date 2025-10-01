@@ -24,6 +24,7 @@ project(
     cosc
     DESCRIPTION "OSC library for C99 or C++11."
     VERSION 0.1.0
+    LANGUAGES C
     )
 
 option(COSC_ENABLE_CXX "Enable C++." OFF)
@@ -31,97 +32,118 @@ if(COSC_ENABLE_CXX)
     enable_language(CXX)
     set_source_files_properties(cosc.c PROPERTIES LANGUAGE CXX)
     list(APPEND CMAKE_CXX_SOURCE_FILE_EXTENSIONS c)
-else()
-    enable_language(C)
+endif()
+
+set(targets_compile_definitions)
+set(targets_compile_options)
+
+set(COSC_API "" CACHE STRING "API linkage.")
+if(COSC_API)
+    list(APPEND targets_compile_definitions -DCOSC_API=${COSC_API})
 endif()
 
 option(COSC_ENABLE_SANITIZERS "Enable address, UB and leak sanitizers." OFF)
 if(COSC_ENABLE_SANITIZERS)
-    add_compile_options(-fsanitize=address -fsanitize=undefined -fsanitize=leak)
-    add_link_options(-fsanitize=address -fsanitize=undefined -fsanitize=leak)
+    if (CMAKE_C_COMPILER_ID STREQUAL "Clang"
+            OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(-fsanitize=address -fsanitize=undefined -fsanitize=leak)
+        add_link_options(-fsanitize=address -fsanitize=undefined -fsanitize=leak)
+    elseif(MSVC)
+        add_compile_options(/fsanitize=address)
+    else()
+        message(FATAL_ERROR "I do not know the sanitizer options for compiler ${CMAKE_C_COMPILER_ID}.")
+    endif()
 endif()
 
 option(COSC_FREESTANDING "Freestanding." OFF)
 if(COSC_FREESTANDING)
     if (CMAKE_C_COMPILER_ID STREQUAL "Clang"
             OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
-        add_compile_options(-ffreestanding)
+        list(APPEND targets_compile_options -ffreestanding)
     else()
-        message(FATAL_ERROR "I do not know the `freestanding` option for compiler ${CMAKE_C_COMPILER_ID}.")
+        message(FATAL_ERROR "I do not know the freestanding option for compiler ${CMAKE_C_COMPILER_ID}.")
     endif()
 endif()
 
 option(COSC_NOSTDLIB "Do not use standard C library." OFF)
 if(COSC_NOSTDLIB)
-    add_compile_definitions(-DCOSC_NOSTDLIB)
-    if (CMAKE_C_COMPILER_ID STREQUAL "Clang"
+    list(APPEND targets_compile_definitions -DCOSC_NOSTDLIB)
+    if(CMAKE_C_COMPILER_ID STREQUAL "Clang"
             OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
-        add_compile_options(-nostdlib)
+        list(APPEND targets_compile_options -nostdlib)
+    elseif(MSVC)
+        list(APPEND targets_compile_options /NODEFAULTLIB)
     else()
-        message(FATAL_ERROR "I do not know the `nostdlib` option for compiler ${CMAKE_C_COMPILER_ID}.")
+        message(FATAL_ERROR "I do not know the nostdlib option for compiler ${CMAKE_C_COMPILER_ID}.")
     endif()
 endif()
 
-set(COSC_API "" CACHE STRING "API linkage.")
-if(COSC_API)
-    add_compile_definitions(-DCOSC_API="${COSC_API}")
+option(COSC_NOEXTRAS "Remove address, typetag and timetag functions." OFF)
+if(COSC_NOEXTRAS)
+    list(APPEND targets_compile_definitions -DCOSC_NOEXTRAS)
 endif()
-
 option(COSC_NOSTDINT "Do not include <stdint.h>." OFF)
 if(COSC_NOSTDINT)
-    add_compile_definitions(-DCOSC_NOSTDINT)
+    list(APPEND targets_compile_definitions -DCOSC_NOSTDINT)
 endif()
 option(COSC_NOSWAP "Do not swap endian." OFF)
-if(COSC_NOSTDINT)
-    add_compile_definitions(-DCOSC_NOSWAP)
+if(COSC_NOSWAP)
+    list(APPEND targets_compile_definitions -DCOSC_NOSWAP)
 endif()
-option(COSC_NOSWAP "No array support." OFF)
-if(COSC_NOSTDINT)
-    add_compile_definitions(-DCOSC_NOARRAY)
+option(COSC_NOARRAY "No array support." OFF)
+if(COSC_NOARRAY)
+    list(APPEND targets_compile_definitions -DCOSC_NOARRAY)
+endif()
+option(COSC_NODUMP "Remove dump functions." OFF)
+if(COSC_NODUMP)
+    list(APPEND targets_compile_definitions -DCOSC_NODUMP)
 endif()
 option(COSC_NO64 "Replace 64-bit types with struct." OFF)
 if(COSC_NO64)
-    add_compile_definitions(-DCOSC_NO64)
+    list(APPEND targets_compile_definitions -DCOSC_NO64)
 endif()
 option(COSC_NOFLOAT32 "Replace 32-bit float with struct." OFF)
 if(COSC_NOFLOAT32)
-    add_compile_definitions(-DCOSC_NOFLOAT32)
+    list(APPEND targets_compile_definitions -DCOSC_NOFLOAT32)
 endif()
 option(COSC_NOFLOAT64 "Replace 64-bit float with struct." OFF)
 if(COSC_NOFLOAT64)
-    add_compile_definitions(-DCOSC_NOFLOAT64)
+    list(APPEND targets_compile_definitions -DCOSC_NOFLOAT64)
 endif()
 set(COSC_TYPE_INT32 "" CACHE STRING "Override typedef for signed 32-bit integer.")
 if(COSC_TYPE_INT32)
-    add_compile_definitions(-DCOSC_TYPE_INT32=${COSC_TYPE_INT32})
+    list(APPEND targets_compile_definitions -DCOSC_TYPE_INT32=${COSC_TYPE_INT32})
 endif()
 set(COSC_TYPE_UINT32 "" CACHE STRING "Override typedef for unsigned 32-bit integer.")
 if(COSC_TYPE_UINT32)
-    add_compile_definitions(-DCOSC_TYPE_U32=${COSC_TYPE_UINT32})
+    list(APPEND targets_compile_definitions -DCOSC_TYPE_U32=${COSC_TYPE_UINT32})
 endif()
 set(COSC_TYPE_FLOAT32 "" CACHE STRING "Override typedef for 32-bit float.")
 if(COSC_TYPE_F32)
-    add_compile_definitions(-DCOSC_TYPE_F32=${COSC_TYPE_FLOAT32})
+    list(APPEND targets_compile_definitions -DCOSC_TYPE_F32=${COSC_TYPE_FLOAT32})
 endif()
-
 set(COSC_TYPE_INT64 "" CACHE STRING "Override typedef for signed 64-bit integer.")
 if(COSC_TYPE_INT64)
-    add_compile_definitions(-DCOSC_TYPE_S64=${COSC_TYPE_INT64})
+    list(APPEND targets_compile_definitions -DCOSC_TYPE_S64=${COSC_TYPE_INT64})
 endif()
-
 set(COSC_TYPE_UINT64 "" CACHE STRING "Override typedef for unsigned 64-bit integer.")
 if(COSC_TYPE_UINT64)
-    add_compile_definitions(-DCOSC_TYPE_UINT64=${COSC_TYPE_UINT64})
+    list(APPEND targets_compile_definitions -DCOSC_TYPE_UINT64=${COSC_TYPE_UINT64})
 endif()
-
 set(COSC_TYPE_FLOAT64 "" CACHE STRING "Override typedef for 64-bit float.")
 if(COSC_TYPE_FLOAT64)
-    add_compile_definitions(-DCOSC_TYPE_F64=${COSC_TYPE_FLOAT64})
+    list(APPEND targets_compile_definitions -DCOSC_TYPE_F64=${COSC_TYPE_FLOAT64})
 endif()
 
-if (CMAKE_C_COMPILER_ID STREQUAL "Clang"
+option(COSC_BUILD_SHARED "Build shared library." OFF)
+option(COSC_BUILD_EXAMPLES "Build examples." OFF)
+option(COSC_BUILD_TESTS "Build unit tests." OFF)
+
+if(CMAKE_C_COMPILER_ID STREQUAL "Clang"
         OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
-    add_compile_options(-Wall -Wextra -pedantic -Wno-unused-parameter)
+    add_compile_options(-Wall -Wextra -pedantic -Wno-unused-parameter -Wno-unused-function)
+elseif(MSVC)
+    add_compile_options(/Wall)
 endif()
 
 include(ExternalProject)
@@ -135,8 +157,9 @@ set_target_properties(
     cosc-static PROPERTIES
     OUTPUT_NAME cosc
     POSITION_INDEPENDENT_CODE TRUE
-    EXCLUDE_FROM_ALL TRUE
     )
+target_compile_definitions(cosc-static PUBLIC ${targets_compile_definitions})
+target_compile_options(cosc-static PUBLIC ${targets_compile_options})
 
 # Shared.
 
@@ -145,7 +168,6 @@ if(EMSCRIPTEN)
     set_target_properties(
         cosc-shared PROPERTIES
         OUTPUT_NAME cosc
-        EXCLUDE_FROM_ALL TRUE
         )
 else()
     add_library(cosc-shared SHARED ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
@@ -153,9 +175,16 @@ else()
         cosc-shared PROPERTIES
         OUTPUT_NAME cosc
         POSITION_INDEPENDENT_CODE TRUE
-        EXCLUDE_FROM_ALL TRUE
         )
 endif()
+
+target_compile_definitions(cosc-shared PUBLIC ${targets_compile_definitions})
+target_compile_options(cosc-shared PUBLIC ${targets_compile_options})
+
+if(NOT COSC_BUILD_SHARED)
+    set_target_properties(cosc-shared PROPERTIES EXCLUDE_FROM_ALL TRUE)
+endif()
+
 
 if(COSC_ENABLE_CXX)
     set_target_properties(cosc-static PROPERTIES LANGUAGE CXX CXX_STANDARD 11)
@@ -170,25 +199,19 @@ endif()
 # Examples.
 #
 
-add_custom_target(examples)
+add_custom_target(examples ALL)
 
 add_executable(example_message ${CMAKE_CURRENT_SOURCE_DIR}/examples/message.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
-set_target_properties(
-    example_message PROPERTIES
-    C_STANDARD 99
-    CXX_STANDARD 11
-    EXCLUDE_FROM_ALL TRUE
-    )
 add_dependencies(examples example_message)
+set_target_properties(example_message PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 add_executable(example_bundle ${CMAKE_CURRENT_SOURCE_DIR}/examples/bundle.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
-set_target_properties(
-    example_bundle PROPERTIES
-    C_STANDARD 99
-    CXX_STANDARD 11
-    EXCLUDE_FROM_ALL TRUE
-    )
 add_dependencies(examples example_bundle)
+set_target_properties(example_bundle PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+if(NOT COSC_BUILD_EXAMPLES)
+    set_target_properties(examples PROPERTIES EXCLUDE_FROM_ALL TRUE)
+endif()
 
 #
 # Unit tests.
@@ -196,14 +219,11 @@ add_dependencies(examples example_bundle)
 
 enable_testing()
 
-add_custom_target(unit_tests)
-set_target_properties(
-    unit_tests PROPERTIES
-    EXCLUDE_FROM_ALL TRUE
-    )
+add_custom_target(unit_tests ALL)
+if(NOT COSC_BUILD_TESTS)
+    set_target_properties(unit_tests PROPERTIES EXCLUDE_FROM_ALL TRUE)
+endif()
 
-
-if(NOT EMSCRIPTEN)
 ExternalProject_Add(
     cmocka
     URL https://cmocka.org/files/1.1/cmocka-1.1.5.tar.xz
@@ -239,14 +259,19 @@ function(add_unit_test unit_test_name suffix flags)
 endfunction()
 
 set(unit_test_names
+    values
+    message
+    )
+
+#if(NOT COSC_NOEXTRAS)
+set(unit_test_names ${unit_test_names}
     address
     typetag
     basics
     signature
-    values
-    message
     timetag
     )
+#endif()
 
 foreach(unit_test_name ${unit_test_names})
     add_unit_test("${unit_test_name}" "" "")
@@ -254,9 +279,8 @@ foreach(unit_test_name ${unit_test_names})
     add_unit_test("${unit_test_name}" "_nostdlib" "-DCOSC_NOSTDLIB")
     add_unit_test("${unit_test_name}" "_nofloat" "-DCOSC_NOFLOAT32 -DCOSC_NOFLOAT64")
     add_unit_test("${unit_test_name}" "_no64" "-DCOSC_NO64")
+    add_unit_test("${unit_test_name}" "_noarray" "-DCOSC_NOARRAY")
 endforeach()
-
-endif() # Not emscripten
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)

@@ -255,7 +255,7 @@ inline static cosc_float64 cosc_load_float64(
 #endif
 }
 
-#ifdef COSC_NO64
+#if defined(COSC_NO64)
 
 static struct cosc_64bits cosc_mul64(
     cosc_uint32 a,
@@ -298,8 +298,6 @@ static struct cosc_64bits cosc_mul64(
     return res;
 }
 
-#include <stdio.h>
-
 static void cosc_div64(struct cosc_64bits *dividend, cosc_uint32 divisor)
 {
     struct cosc_64bits q = {0, 0};
@@ -337,7 +335,9 @@ static void cosc_add64(struct cosc_64bits *augend, cosc_uint32 addend)
     augend->lo += addend;
 }
 
-#endif
+#endif /* COSC_NO64 */
+
+#ifndef COSC_NOEXTRAS
 
 static cosc_int32 cosc_strncmp(const char *a, cosc_int32 a_n, const char *b, cosc_int32 b_n)
 {
@@ -452,8 +452,6 @@ static cosc_int32 cosc_charset_match(
         *forward = len;
     return 0;
 }
-
-#include <stdio.h> // FIXME: remove
 
 static cosc_int32 cosc_stringset_match(
     const char *s,
@@ -921,6 +919,8 @@ cosc_int32 cosc_signature_match(
         return 1;
     return 0;
 }
+
+#endif /* !COSC_NOEXTRAS */
 
 cosc_uint32 cosc_timetag_to_time(
     cosc_uint64 timetag,
@@ -1844,7 +1844,7 @@ cosc_int32 cosc_read_message(
     return req;
 }
 
-#if !defined(COSC_NOSTDLIB) && !defined(COSC_NODUMP)
+#if !defined(COSC_NOSTDLIB) && !defined(COSC_NODUMP) && !defined(COSC_NOEXTRAS)
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -1953,4 +1953,4 @@ cosc_int32 cosc_message_dump(
     return len;
 }
 
-#endif
+#endif /* !COSC_NODUMP && !COSC_NOSTDLIB && !COSC_NOEXTRAS */

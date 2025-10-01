@@ -145,7 +145,9 @@ int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup(test_without_array, func_setup),
+#ifndef COSC_NOARRAY
         cmocka_unit_test_setup(test_with_array, func_setup),
+#endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
     return 0;
