@@ -135,9 +135,9 @@ if(COSC_TYPE_FLOAT64)
     list(APPEND targets_compile_definitions -DCOSC_TYPE_F64=${COSC_TYPE_FLOAT64})
 endif()
 
-option(COSC_BUILD_SHARED "Build shared library." OFF)
-option(COSC_BUILD_EXAMPLES "Build examples." OFF)
-option(COSC_BUILD_TESTS "Build unit tests." OFF)
+option(COSC_BUILD_SHARED "Build shared library for target ALL." OFF)
+option(COSC_BUILD_EXAMPLES "Build examples for target ALL." OFF)
+option(COSC_BUILD_TESTS "Build unit tests for target ALL." OFF)
 
 if(CMAKE_C_COMPILER_ID STREQUAL "Clang"
         OR CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -200,6 +200,9 @@ endif()
 #
 
 add_custom_target(examples ALL)
+if(NOT COSC_BUILD_EXAMPLES)
+    set_target_properties(examples PROPERTIES EXCLUDE_FROM_ALL TRUE)
+endif()
 
 add_executable(example_message ${CMAKE_CURRENT_SOURCE_DIR}/examples/message.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
 add_dependencies(examples example_message)
@@ -209,78 +212,77 @@ add_executable(example_bundle ${CMAKE_CURRENT_SOURCE_DIR}/examples/bundle.c ${CM
 add_dependencies(examples example_bundle)
 set_target_properties(example_bundle PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
-if(NOT COSC_BUILD_EXAMPLES)
-    set_target_properties(examples PROPERTIES EXCLUDE_FROM_ALL TRUE)
-endif()
-
 #
 # Unit tests.
 #
 
-enable_testing()
+if(NOT EMSCRIPTEN)
 
-add_custom_target(unit_tests ALL)
-if(NOT COSC_BUILD_TESTS)
-    set_target_properties(unit_tests PROPERTIES EXCLUDE_FROM_ALL TRUE)
-endif()
+    enable_testing()
 
-ExternalProject_Add(
-    cmocka
-    URL https://cmocka.org/files/1.1/cmocka-1.1.5.tar.xz
-    DOWNLOAD_EXTRACT_TIMESTAMP OFF
-    CMAKE_ARGS
-    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-    -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-    -DCMAKE_INSTALL_LIBDIR=lib
-    -DANDROID_ABI=${ANDROID_ABI}
-    -DWITH_EXAMPLES=OFF
-    -DWITH_STATIC_LIB=ON
-    )
-set_target_properties(
-    cmocka PROPERTIES
-    EXCLUDE_FROM_ALL TRUE
-    )
-ExternalProject_Get_Property(cmocka install_dir)
+    add_custom_target(unit_tests ALL)
+    if(NOT COSC_BUILD_TESTS)
+        set_target_properties(unit_tests PROPERTIES EXCLUDE_FROM_ALL TRUE)
+    endif()
 
-function(add_unit_test unit_test_name suffix flags)
-    set(executable_name unit_test_${unit_test_name}${suffix})
-    add_executable(${executable_name} ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests/${unit_test_name}.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
+    set(unit_test_names
+        values
+        message
+        timetag
+        )
+    if(NOT COSC_NOEXTRAS)
+        set(unit_test_names ${unit_test_names}
+            address
+            typetag
+            basics
+            signature
+            )
+    endif()
+    
+    ExternalProject_Add(
+        cmocka
+        URL https://cmocka.org/files/1.1/cmocka-1.1.5.tar.xz
+        DOWNLOAD_EXTRACT_TIMESTAMP OFF
+        CMAKE_ARGS
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+        -DCMAKE_INSTALL_LIBDIR=lib
+        -DANDROID_ABI=${ANDROID_ABI}
+        -DWITH_EXAMPLES=OFF
+        -DWITH_STATIC_LIB=ON
+        )
     set_target_properties(
-        ${executable_name} PROPERTIES
+        cmocka PROPERTIES
         EXCLUDE_FROM_ALL TRUE
         )
-    target_include_directories(${executable_name} PUBLIC ${install_dir}/include)
-    target_compile_options(${executable_name} PUBLIC ${flags})
-    target_link_libraries(${executable_name} PUBLIC ${install_dir}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}cmocka-static${CMAKE_STATIC_LIBRARY_SUFFIX})
-    add_dependencies(${executable_name} cmocka)
-    add_dependencies(unit_tests ${executable_name})
-    add_test(test_${unit_test_name}${suffix} ${executable_name})
-endfunction()
+    ExternalProject_Get_Property(cmocka install_dir)
 
-set(unit_test_names
-    values
-    message
-    )
+    function(add_unit_test unit_test_name suffix flags)
+        set(executable_name unit_test_${unit_test_name}${suffix})
+        add_executable(${executable_name} ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests/${unit_test_name}.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
+        set_target_properties(
+            ${executable_name} PROPERTIES
+            EXCLUDE_FROM_ALL TRUE
+            )
+        target_include_directories(${executable_name} PUBLIC ${install_dir}/include)
+        target_compile_options(${executable_name} PUBLIC ${flags})
+        target_link_libraries(${executable_name} PUBLIC ${install_dir}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}cmocka-static${CMAKE_STATIC_LIBRARY_SUFFIX})
+        add_dependencies(${executable_name} cmocka)
+        add_dependencies(unit_tests ${executable_name})
+        add_test(test_${unit_test_name}${suffix} ${executable_name})
+    endfunction()
 
-#if(NOT COSC_NOEXTRAS)
-set(unit_test_names ${unit_test_names}
-    address
-    typetag
-    basics
-    signature
-    timetag
-    )
-#endif()
+    foreach(unit_test_name ${unit_test_names})
+        add_unit_test("${unit_test_name}" "" "")
+        add_unit_test("${unit_test_name}" "_noswap" "-DCOSC_NOSWAP")
+        add_unit_test("${unit_test_name}" "_nostdlib" "-DCOSC_NOSTDLIB")
+        add_unit_test("${unit_test_name}" "_nofloat" "-DCOSC_NOFLOAT32 -DCOSC_NOFLOAT64")
+        add_unit_test("${unit_test_name}" "_no64" "-DCOSC_NO64")
+        add_unit_test("${unit_test_name}" "_noarray" "-DCOSC_NOARRAY")
+    endforeach()
 
-foreach(unit_test_name ${unit_test_names})
-    add_unit_test("${unit_test_name}" "" "")
-    add_unit_test("${unit_test_name}" "_noswap" "-DCOSC_NOSWAP")
-    add_unit_test("${unit_test_name}" "_nostdlib" "-DCOSC_NOSTDLIB")
-    add_unit_test("${unit_test_name}" "_nofloat" "-DCOSC_NOFLOAT32 -DCOSC_NOFLOAT64")
-    add_unit_test("${unit_test_name}" "_no64" "-DCOSC_NO64")
-    add_unit_test("${unit_test_name}" "_noarray" "-DCOSC_NOARRAY")
-endforeach()
+endif() # COSC_BUILD_TESTS
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
