@@ -36,7 +36,6 @@ jobs:
           cmake --build build --config Debug --target unit_tests
       - name: Run unit tests
         run: |
-          cd build
           env CTEST_OUTPUT_ON_FAILURE=1 cmake --build build --target test
   unit-tests-android-arm64:
     name: Android arm64-v8a (build only)
@@ -95,7 +94,7 @@ jobs:
           emcmake cmake -B build -DCMAKE_BUILD_TYPE=Debug
       - name: Build static
         run: |
-          emcmake cmake --build build --config Debug --target cosc-static
+          cmake --build build --config Debug --target cosc-static
       - name: Build shared
         run: |
-          emcmake cmake --build build --config Debug --target cosc-shared
+          cmake --build build --config Debug --target cosc-shared
