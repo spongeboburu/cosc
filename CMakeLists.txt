@@ -135,6 +135,7 @@ if(COSC_TYPE_FLOAT64)
     list(APPEND targets_compile_definitions -DCOSC_TYPE_F64=${COSC_TYPE_FLOAT64})
 endif()
 
+option(COSC_BUILD_STATIC "Build static library for target ALL." ON)
 option(COSC_BUILD_SHARED "Build shared library for target ALL." OFF)
 option(COSC_BUILD_EXAMPLES "Build examples for target ALL." OFF)
 option(COSC_BUILD_TESTS "Build unit tests for target ALL." OFF)
@@ -151,7 +152,6 @@ include(ExternalProject)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 # Static.
-
 add_library(cosc-static STATIC ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
 set_target_properties(
     cosc-static PROPERTIES
@@ -160,9 +160,11 @@ set_target_properties(
     )
 target_compile_definitions(cosc-static PUBLIC ${targets_compile_definitions})
 target_compile_options(cosc-static PUBLIC ${targets_compile_options})
+if(NOT COSC_BUILD_STATIC)
+    set_target_properties(cosc-static PROPERTIES EXCLUDE_FROM_ALL TRUE)
+endif()
 
 # Shared.
-
 if(EMSCRIPTEN)
     add_executable(cosc-shared ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
     set_target_properties(
@@ -177,14 +179,11 @@ else()
         POSITION_INDEPENDENT_CODE TRUE
         )
 endif()
-
-target_compile_definitions(cosc-shared PUBLIC ${targets_compile_definitions})
+target_compile_definitions(cosc-shared PUBLIC ${targets_compile_definitions} -DCOSC_BUILD_SHARED)
 target_compile_options(cosc-shared PUBLIC ${targets_compile_options})
-
 if(NOT COSC_BUILD_SHARED)
     set_target_properties(cosc-shared PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
-
 
 if(COSC_ENABLE_CXX)
     set_target_properties(cosc-static PROPERTIES LANGUAGE CXX CXX_STANDARD 11)
@@ -193,7 +192,6 @@ else()
     set_target_properties(cosc-static PROPERTIES LANGUAGE C C_STANDARD 99)
     set_target_properties(cosc-shared PROPERTIES LANGUAGE C C_STANDARD 99)
 endif()
-
 
 #
 # Examples.

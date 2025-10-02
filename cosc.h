@@ -71,12 +71,21 @@
  */
 
 #ifndef COSC_API
+
+#ifdef COSC_BUILD_SHARED
 #ifdef _MSC_VER
 #define COSC_API __declspec(dllexport)
 #else
 #define COSC_API
 #endif
+#else /* COSC_BUILD_SHARED */
+#if defined(__clang__) || defined(__GNUC__)
+#define COSC_API __attribute__ ((visibility ("hidden")))
+#else
+#define COSC_API
 #endif
+#endif /* COSC_BUILD_SHARED */
+#endif /* COSC_API */
 
 /**
  * Used to typedef @ref cosc_uint32.
