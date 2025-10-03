@@ -434,6 +434,36 @@ extern "C" {
 #ifndef COSC_NOEXTRAS
 
 /**
+ * Feature test if cosc was built for big endians.
+ * @returns Non-zero if cosc was built for big endians.
+ */
+COSC_API cosc_int32 cosc_feature_bigendian(void);
+
+/**
+ * Feature test for 64-bit integer support.
+ * @returns Non-zero if valid cosc was built with 64-bit integer support.
+ */
+COSC_API cosc_int32 cosc_feature_int64(void);
+
+/**
+ * Feature test for 32-bit float support.
+ * @returns Non-zero if valid cosc was built with 32-bit float support.
+ */
+COSC_API cosc_int32 cosc_feature_float32(void);
+
+/**
+ * Feature test for 64-bit float support.
+ * @returns Non-zero if valid cosc was built with 64-bit float support.
+ */
+COSC_API cosc_int32 cosc_feature_float64(void);
+
+/**
+ * Feature test for endian swapping.
+ * @returns Non-zero if valid cosc was built with endian swapping.
+ */
+COSC_API cosc_int32 cosc_feature_swap(void);
+
+/**
  * Check if an address character is valid.
  * @param c The character.
  * @returns Non-zero if valid or zero if invalid.

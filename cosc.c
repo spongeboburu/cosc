@@ -24,10 +24,8 @@
 
 #include "cosc.h"
 
-#if defined(COSC_NOINT64) && !defined(COSC_NOINT64) && !defined(COSC_NOSWAP)
 static const union { cosc_uint32 u; unsigned char b[4]; } COSC_ENDIAN_ENCODING = {.u=0xff};
-#define COSC_BIGENDIAN (*COSC_ENDIAN_ENCODING)
-#endif
+#define COSC_BIGENDIAN (!COSC_ENDIAN_ENCODING.b[3])
 
 #ifdef COSC_NOSTDLIB
 static void *cosc_memcpy(void *dest, const void *src, cosc_int32 n)
@@ -618,6 +616,47 @@ static cosc_int32 cosc_stringset_match(
 //
 // Public below.
 //
+
+cosc_int32 cosc_feature_bigendian(void)
+{
+    return COSC_BIGENDIAN;
+}
+
+cosc_int32 cosc_feature_int64(void)
+{
+#ifdef COSC_NOINT64
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+cosc_int32 cosc_feature_float32(void)
+{
+#ifdef COSC_NOFLOAT32
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+cosc_int32 cosc_feature_float64(void)
+{
+#ifdef COSC_NOFLOAT64
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+cosc_int32 cosc_feature_swap(void)
+{
+#ifdef COSC_NOSWAP
+    return 0;
+#else
+    return 1;
+#endif
+}
 
 cosc_int32 cosc_address_char_validate(
     char c
