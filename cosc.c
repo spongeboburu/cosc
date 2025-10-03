@@ -24,6 +24,11 @@
 
 #include "cosc.h"
 
+#if defined(COSC_NOINT64) && !defined(COSC_NOINT64) && !defined(COSC_NOSWAP)
+static const union { cosc_uint32 u; unsigned char b[4]; } COSC_ENDIAN_ENCODING = {.u=0xff};
+#define COSC_BIGENDIAN (*COSC_ENDIAN_ENCODING)
+#endif
+
 #ifdef COSC_NOSTDLIB
 static void *cosc_memcpy(void *dest, const void *src, cosc_int32 n)
 {
@@ -101,7 +106,7 @@ inline static void cosc_store_int32(
     cosc_int32 value
 )
 {
-    union { cosc_int32 in; cosc_uint32 out; } tmp = {value};
+    union { cosc_int32 in; cosc_uint32 out; } tmp = {.in=value};
     cosc_store_uint32(buffer, tmp.out);
 }
 
@@ -109,7 +114,7 @@ inline static cosc_int32 cosc_load_int32(
     const void *buffer
 )
 {
-    union { cosc_uint32 in; cosc_int32 out; } tmp = {cosc_load_uint32(buffer)};
+    union { cosc_uint32 in; cosc_int32 out; } tmp = {.in=cosc_load_uint32(buffer)};
     return tmp.out;
 }
 
@@ -121,7 +126,7 @@ inline static void cosc_store_float32(
 #ifdef COSC_NOFLOAT32
     cosc_store_uint32(buffer, value);
 #else
-    union { cosc_float32 in; cosc_uint32 out; } tmp = {value};
+    union { cosc_float32 in; cosc_uint32 out; } tmp = {.in=value};
     cosc_store_uint32(buffer, tmp.out);
 #endif
 }
@@ -130,7 +135,7 @@ inline static cosc_float32 cosc_load_float32(
     const void *buffer
 )
 {
-    union { cosc_uint32 in; cosc_float32 out; } tmp = {cosc_load_uint32(buffer)};
+    union { cosc_uint32 in; cosc_float32 out; } tmp = {.in=cosc_load_uint32(buffer)};
     return tmp.out;
 }
 
@@ -148,8 +153,8 @@ inline static void cosc_store_uint64(
     ((unsigned char *)buffer)[5] = ((const unsigned char *)(&value))[5];
     ((unsigned char *)buffer)[6] = ((const unsigned char *)(&value))[6];
     ((unsigned char *)buffer)[7] = ((const unsigned char *)(&value))[7];
-#else
-#ifdef COSC_NO64
+#else /* COSC_NOSWAP */
+#ifdef COSC_NOINT64
     ((unsigned char *)buffer)[0] = (value.hi & 0xff000000) >> 24;
     ((unsigned char *)buffer)[1] = (value.hi & 0xff0000) >> 16;
     ((unsigned char *)buffer)[2] = (value.hi & 0xff00) >> 8;
@@ -158,7 +163,7 @@ inline static void cosc_store_uint64(
     ((unsigned char *)buffer)[5] = (value.lo & 0xff0000) >> 16;
     ((unsigned char *)buffer)[6] = (value.lo & 0xff00) >> 8;
     ((unsigned char *)buffer)[7] = value.lo & 0xff;
-#else
+#else /* COSC_NOINT64 */
     ((unsigned char *)buffer)[0] = (value & 0xff00000000000000ULL) >> 56;
     ((unsigned char *)buffer)[1] = (value & 0xff000000000000ULL) >> 48;
     ((unsigned char *)buffer)[2] = (value & 0xff0000000000ULL) >> 40;
@@ -167,8 +172,8 @@ inline static void cosc_store_uint64(
     ((unsigned char *)buffer)[5] = (value & 0xff0000) >> 16;
     ((unsigned char *)buffer)[6] = (value & 0xff00) >> 8;
     ((unsigned char *)buffer)[7] = value & 0xff;
-#endif
-#endif
+#endif /* COSC_NOINT64 */
+#endif /* COSC_NOSWAP */
 }
 
 inline static cosc_uint64 cosc_load_uint64(
@@ -186,11 +191,20 @@ inline static cosc_uint64 cosc_load_uint64(
     ((unsigned char *)(&tmp))[6] = ((const unsigned char *)buffer)[6];
     ((unsigned char *)(&tmp))[7] = ((const unsigned char *)buffer)[7];
     return tmp;
-#else
-#ifdef COSC_NO64
-    struct cosc_64bits tmp = {cosc_load_uint32(buffer), cosc_load_uint32((const char *)buffer + 4)};
+#else /* COSC_NOSWAP */
+#ifdef COSC_NOINT64
+    struct cosc_64bits tmp = {
+        ((cosc_uint32)((const unsigned char *)buffer)[0] << 24)
+        | ((cosc_uint32)((const unsigned char *)buffer)[1] << 16)
+        | ((cosc_uint32)((const unsigned char *)buffer)[2] << 8)
+        | ((cosc_uint32)((const unsigned char *)buffer)[3]),
+        ((cosc_uint32)((const unsigned char *)buffer)[4] << 24)
+        | ((cosc_uint32)((const unsigned char *)buffer)[5] << 16)
+        | ((cosc_uint32)((const unsigned char *)buffer)[6] << 8)
+        | ((cosc_uint32)((const unsigned char *)buffer)[7])
+    };
     return tmp;
-#else
+#else /* COSC_NOINT64 */
     return (
         ((cosc_uint64)((const unsigned char *)buffer)[0] << 56)
         | ((cosc_uint64)((const unsigned char *)buffer)[1] << 48)
@@ -201,8 +215,8 @@ inline static cosc_uint64 cosc_load_uint64(
         | ((cosc_uint64)((const unsigned char *)buffer)[6] << 8)
         | ((cosc_uint64)((const unsigned char *)buffer)[7])
     );
-#endif
-#endif
+#endif /* COSC_NOINT64 */
+#endif /* COSC_NOSWAP */
 }
 
 inline static void cosc_store_int64(
@@ -210,10 +224,10 @@ inline static void cosc_store_int64(
     cosc_int64 value
 )
 {
-#ifdef COSC_NO64
+#ifdef COSC_NOINT64
     cosc_store_uint64(buffer, value);
 #else
-    union { cosc_int64 in; cosc_uint64 out; } tmp = {value};
+    union { cosc_int64 in; cosc_uint64 out; } tmp = {.in=value};
     cosc_store_uint64(buffer, tmp.out);
 #endif
 }
@@ -222,10 +236,10 @@ inline static cosc_int64 cosc_load_int64(
     const void *buffer
 )
 {
-#ifdef COSC_NO64
+#ifdef COSC_NOINT64
     return cosc_load_uint64(buffer);
 #else
-    union { cosc_uint64 in; cosc_int64 out; } tmp = {cosc_load_uint64(buffer)};
+    union { cosc_uint64 in; cosc_int64 out; } tmp = {.in=cosc_load_uint64(buffer)};
     return tmp.out;
 #endif
 }
@@ -235,27 +249,123 @@ inline static void cosc_store_float64(
     cosc_float64 value
 )
 {
-#ifdef COSC_NO64
-    cosc_store_uint64(buffer, value);
-#else
-    union { cosc_float64 in; cosc_uint64 out; } tmp = {value};
-    cosc_store_uint64(buffer, tmp.out);
-#endif
+#ifdef COSC_NOSWAP
+    ((unsigned char *)buffer)[0] = ((const unsigned char *)(&value))[0];
+    ((unsigned char *)buffer)[1] = ((const unsigned char *)(&value))[1];
+    ((unsigned char *)buffer)[2] = ((const unsigned char *)(&value))[2];
+    ((unsigned char *)buffer)[3] = ((const unsigned char *)(&value))[3];
+    ((unsigned char *)buffer)[4] = ((const unsigned char *)(&value))[4];
+    ((unsigned char *)buffer)[5] = ((const unsigned char *)(&value))[5];
+    ((unsigned char *)buffer)[6] = ((const unsigned char *)(&value))[6];
+    ((unsigned char *)buffer)[7] = ((const unsigned char *)(&value))[7];
+#else /* COSC_NOSWAP */
+#ifdef COSC_NOFLOAT64
+    ((unsigned char *)buffer)[0] = (value.hi & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[1] = (value.hi & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[2] = (value.hi & 0xff00) >> 8;
+    ((unsigned char *)buffer)[3] = value.hi & 0xff;
+    ((unsigned char *)buffer)[4] = (value.lo & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[5] = (value.lo & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[6] = (value.lo & 0xff00) >> 8;
+    ((unsigned char *)buffer)[7] = value.lo & 0xff;
+#else /* COSC_NOFLOAT64 */
+#ifdef COSC_NOINT64
+    union { cosc_float64 in; cosc_uint64 out; } tmp = {.in=value};
+    if (!COSC_BIGENDIAN)
+    {
+        cosc_uint32 swap = tmp.out.hi;
+        tmp.out.hi = tmp.out.lo;
+        tmp.out.lo = swap;
+    }
+    ((unsigned char *)buffer)[0] = (value.hi & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[1] = (value.hi & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[2] = (value.hi & 0xff00) >> 8;
+    ((unsigned char *)buffer)[3] = value.hi & 0xff;
+    ((unsigned char *)buffer)[4] = (value.lo & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[5] = (value.lo & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[6] = (value.lo & 0xff00) >> 8;
+    ((unsigned char *)buffer)[7] = value.lo & 0xff;
+#else /* COSC_NOINT64 */
+    union { cosc_float64 in; cosc_uint64 out; } tmp = {.in=value};
+    ((unsigned char *)buffer)[0] = (tmp.out & 0xff00000000000000ULL) >> 56;
+    ((unsigned char *)buffer)[1] = (tmp.out & 0xff000000000000ULL) >> 48;
+    ((unsigned char *)buffer)[2] = (tmp.out & 0xff0000000000ULL) >> 40;
+    ((unsigned char *)buffer)[3] = (tmp.out & 0xff00000000ULL) >> 32;
+    ((unsigned char *)buffer)[4] = (tmp.out & 0xff000000) >> 24;
+    ((unsigned char *)buffer)[5] = (tmp.out & 0xff0000) >> 16;
+    ((unsigned char *)buffer)[6] = (tmp.out & 0xff00) >> 8;
+    ((unsigned char *)buffer)[7] = tmp.out & 0xff;
+#endif /* COSC_NOINT64 */
+#endif /* COSC_NOFLOAT64 */
+#endif /* COSC_NOSWAP */
 }
 
 inline static cosc_float64 cosc_load_float64(
     const void *buffer
 )
 {
-#ifdef COSC_NO64
-    return cosc_load_uint64(buffer);
-#else
-    union { cosc_uint64 in; cosc_float64 out; } tmp = {cosc_load_uint64(buffer)};
+#ifdef COSC_NOSWAP
+    cosc_float64 tmp;
+    ((unsigned char *)(&tmp))[0] = ((const unsigned char *)buffer)[0];
+    ((unsigned char *)(&tmp))[1] = ((const unsigned char *)buffer)[1];
+    ((unsigned char *)(&tmp))[2] = ((const unsigned char *)buffer)[2];
+    ((unsigned char *)(&tmp))[3] = ((const unsigned char *)buffer)[3];
+    ((unsigned char *)(&tmp))[4] = ((const unsigned char *)buffer)[4];
+    ((unsigned char *)(&tmp))[5] = ((const unsigned char *)buffer)[5];
+    ((unsigned char *)(&tmp))[6] = ((const unsigned char *)buffer)[6];
+    ((unsigned char *)(&tmp))[7] = ((const unsigned char *)buffer)[7];
+    return tmp;
+#else /* COSC_NOSWAP */
+#ifdef COSC_NOFLOAT64
+    struct cosc_64bits tmp = {
+        ((cosc_uint32)((const unsigned char *)buffer)[0] << 24)
+        | ((cosc_uint32)((const unsigned char *)buffer)[1] << 16)
+        | ((cosc_uint32)((const unsigned char *)buffer)[2] << 8)
+        | ((cosc_uint32)((const unsigned char *)buffer)[3]),
+        ((cosc_uint32)((const unsigned char *)buffer)[4] << 24)
+        | ((cosc_uint32)((const unsigned char *)buffer)[5] << 16)
+        | ((cosc_uint32)((const unsigned char *)buffer)[6] << 8)
+        | ((cosc_uint32)((const unsigned char *)buffer)[7])
+    };
+    return tmp;
+#else /* COSC_NOFLOAT64 */
+#ifdef COSC_NOINT64
+    union { cosc_uint64 in; cosc_float64 out; } tmp = {.in={
+        ((cosc_uint32)((const unsigned char *)buffer)[0] << 24)
+        | ((cosc_uint32)((const unsigned char *)buffer)[1] << 16)
+        | ((cosc_uint32)((const unsigned char *)buffer)[2] << 8)
+        | ((cosc_uint32)((const unsigned char *)buffer)[3]),
+        ((cosc_uint32)((const unsigned char *)buffer)[4] << 24)
+        | ((cosc_uint32)((const unsigned char *)buffer)[5] << 16)
+        | ((cosc_uint32)((const unsigned char *)buffer)[6] << 8)
+        | ((cosc_uint32)((const unsigned char *)buffer)[7])
+        }
+    };
+    if (!COSC_BIGENDIAN)
+    {
+        cosc_uint32 swap = tmp.in.hi;
+        tmp.in.hi = tmp.in.lo;
+        tmp.in.lo = swap;
+    }
     return tmp.out;
-#endif
+#else /* COSC_NOINT64 */
+    union { cosc_uint64 in; cosc_float64 out; } tmp = {
+        ((cosc_uint64)((const unsigned char *)buffer)[0] << 56)
+        | ((cosc_uint64)((const unsigned char *)buffer)[1] << 48)
+        | ((cosc_uint64)((const unsigned char *)buffer)[2] << 40)
+        | ((cosc_uint64)((const unsigned char *)buffer)[3] << 32)
+        | ((cosc_uint64)((const unsigned char *)buffer)[4] << 24)
+        | ((cosc_uint64)((const unsigned char *)buffer)[5] << 16)
+        | ((cosc_uint64)((const unsigned char *)buffer)[6] << 8)
+        | ((cosc_uint64)((const unsigned char *)buffer)[7])
+    };
+    return tmp.out;
+#endif /* COSC_NOINT64 */
+#endif /* COSC_NOFLOAT64 */
+#endif /* COSC_NOSWAP */
 }
 
-#if defined(COSC_NO64)
+#if defined(COSC_NOINT64)
 
 static struct cosc_64bits cosc_mul64(
     cosc_uint32 a,
@@ -335,7 +445,7 @@ static void cosc_add64(struct cosc_64bits *augend, cosc_uint32 addend)
     augend->lo += addend;
 }
 
-#endif /* COSC_NO64 */
+#endif /* COSC_NOINT64 */
 
 #ifndef COSC_NOEXTRAS
 
@@ -927,7 +1037,7 @@ cosc_uint32 cosc_timetag_to_time(
     cosc_uint32 *nanos
 )
 {
-#ifdef COSC_NO64
+#ifdef COSC_NOINT64
     if (nanos)
     {
         struct cosc_64bits tmp = cosc_mul64(timetag.lo, 1000000000);
@@ -955,7 +1065,7 @@ cosc_uint64 cosc_timetag_from_time(
 {
     seconds += nanos / 1000000000;
     nanos %= 1000000000;
-#ifdef COSC_NO64
+#ifdef COSC_NOINT64
     struct cosc_64bits res = {nanos, 0};
     cosc_add64(&res, 0x20000000);
     cosc_div64(&res, 1000000000);
@@ -1460,7 +1570,7 @@ cosc_int32 cosc_write_value(
     const union cosc_value *value
 )
 {
-#ifdef COSC_NO64
+#ifdef COSC_NOINT64
     static const struct cosc_64bits zero64 = {0, 0};
 #endif
     if (buffer)
@@ -1470,7 +1580,7 @@ cosc_int32 cosc_write_value(
         case 'i': return cosc_write_int32(buffer, size, value ? value->i : 0);
         case 'r': return cosc_write_uint32(buffer, size, value ? value->r : 0);
         case 'f': return cosc_write_float32(buffer, size, value ? value->f : 0);
-#ifdef COSC_NO64
+#ifdef COSC_NOINT64
         case 'h': return cosc_write_int64(buffer, size, value ? value->h : zero64);
         case 't': return cosc_write_uint64(buffer, size, value ? value->t : zero64);
         case 'd': return cosc_write_float64(buffer, size, value ? value->d : zero64);
@@ -1873,18 +1983,17 @@ cosc_int32 cosc_value_dump(
 #endif
     case 'S':
     case 's': return snprintf(s, n, "\"%s\"", value->s.s ? value->s.s : "");
-#ifdef COSC_NO64
+#ifdef COSC_NOINT64
     case 'h': return snprintf(s, n, "0x%08x %08x", value->h.hi, value->h.lo);
     case 't': return snprintf(s, n, "0x%08x %08x", value->t.hi, value->t.lo);
-    case 'd': return snprintf(s, n, "0x%08x %08x", value->d.hi, value->d.lo);
 #else
     case 'h': return snprintf(s, n, "%" PRId64, value->h);
     case 't': return snprintf(s, n, "%" PRIu64, value->t);
+#endif
 #ifdef COSC_NOFLOAT64
-    case 'd': return snprintf(s, n, "0x%" PRIx64, value->d);
+    case 'd': return snprintf(s, n, "0x%08x %08x" PRIx64, value->d.hi, value->d.lo);
 #else
     case 'd': return snprintf(s, n, "%f", value->d);
-#endif
 #endif
     case 'c':
         if (value->c >= 32)

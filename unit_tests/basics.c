@@ -224,7 +224,7 @@ static void test_midi_overrun(void **state)
 // 64 bit types.
 //
 
-#ifndef COSC_NO64
+#ifndef COSC_NOINT64
 
 static void test_uint64(void **state)
 {
@@ -290,6 +290,82 @@ static void test_int64_overrun(void **state)
     assert_int_equal(ret, COSC_EOVERRUN);
 }
 
+#else /* !COSC_NOINT64 */
+
+static void test_uint64(void **state)
+{
+    cosc_int32 ret;
+    cosc_uint64 input = {0x87654321, 0x87654321};
+    cosc_uint64 value = {0, 0};
+    ret = cosc_write_uint64(buffer, sizeof(buffer), input);
+    assert_int_equal(ret, 8);
+    ret = cosc_read_uint64(buffer, sizeof(buffer), &value);
+    assert_int_equal(ret, 8);
+    assert_int_equal(value.hi, 0x87654321);
+    assert_int_equal(value.lo, 0x87654321);
+}
+
+static void test_uint64_null(void **state)
+{
+    cosc_int32 ret;
+    cosc_uint64 input = {0x87654321, 0x87654321};
+    ret = cosc_write_uint64(NULL, 0, input);
+    assert_int_equal(ret, 8);
+    ret = cosc_read_uint64(buffer, sizeof(buffer), NULL);
+    assert_int_equal(ret, 8);
+}
+
+static void test_uint64_overrun(void **state)
+{
+    cosc_int32 ret;
+    cosc_uint64 input = {0x87654321, 0x87654321};
+    cosc_uint64 value = {0, 0};
+    ret = cosc_write_uint64(buffer, 7, input);
+    assert_int_equal(ret, COSC_EOVERRUN);
+    ret = cosc_read_uint64(buffer, 7, &value);
+    assert_int_equal(ret, COSC_EOVERRUN);
+    ret = cosc_read_uint64(buffer, 7, NULL);
+    assert_int_equal(ret, COSC_EOVERRUN);
+}
+
+static void test_int64(void **state)
+{
+    cosc_int32 ret;
+    cosc_uint64 input = {0x12345678, 0x12345678};
+    cosc_int64 value = {0, 0};
+    ret = cosc_write_int64(buffer, sizeof(buffer), input);
+    assert_int_equal(ret, 8);
+    ret = cosc_read_int64(buffer, sizeof(buffer), &value);
+    assert_int_equal(ret, 8);
+    assert_int_equal(value.hi, 0x12345678);
+    assert_int_equal(value.lo, 0x12345678);
+}
+
+static void test_int64_null(void **state)
+{
+    cosc_int32 ret;
+    cosc_uint64 input = {0x12345678, 0x12345678};
+    ret = cosc_write_int64(NULL, 0, input);
+    assert_int_equal(ret, 8);
+    ret = cosc_read_int64(buffer, sizeof(buffer), NULL);
+    assert_int_equal(ret, 8);
+}
+
+static void test_int64_overrun(void **state)
+{
+    cosc_int32 ret;
+    cosc_uint64 input = {0x87654321, 0x87654321};
+    cosc_int64 value = {0, 0};
+    ret = cosc_write_int64(buffer, 7, input);
+    assert_int_equal(ret, COSC_EOVERRUN);
+    ret = cosc_read_int64(buffer, 7, &value);
+    assert_int_equal(ret, COSC_EOVERRUN);
+    ret = cosc_read_int64(buffer, 7, NULL);
+    assert_int_equal(ret, COSC_EOVERRUN);
+}
+
+#endif /* !COSC_NOINT64 */
+
 #ifndef COSC_NOFLOAT64
 
 static void test_float64(void **state)
@@ -324,130 +400,25 @@ static void test_float64_overrun(void **state)
     assert_int_equal(ret, COSC_EOVERRUN);
 }
 
-#else /* COSC_NOFLOAT64 */
+#else /* !COSC_NOFLOAT64 */
 
 static void test_float64(void **state)
 {
     cosc_int32 ret;
-    cosc_float64 value = 0;
-    ret = cosc_write_float64(buffer, sizeof(buffer), 1234);
-    assert_int_equal(ret, 8);
-    ret = cosc_read_float64(buffer, sizeof(buffer), &value);
-    assert_int_equal(ret, 8);
-    assert_int_equal(value, 1234);
-}
-
-static void test_float64_null(void **state)
-{
-    cosc_int32 ret;
-    ret = cosc_write_float64(NULL, 0, 1234);
-    assert_int_equal(ret, 8);
-    ret = cosc_read_float64(buffer, sizeof(buffer), NULL);
-    assert_int_equal(ret, 8);
-}
-
-static void test_float64_overrun(void **state)
-{
-    cosc_int32 ret;
-    cosc_float64 value = 0;
-    ret = cosc_write_float64(buffer, 7, 1234);
-    assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_float64(buffer, 7, &value);
-    assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_float64(buffer, 7, NULL);
-    assert_int_equal(ret, COSC_EOVERRUN);
-}
-
-#endif /* COSC_NOFLOAT64 */
-
-#else /* COSC_NO64 */
-
-static void test_uint64(void **state)
-{
-    cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
-    cosc_uint64 value = {0};
-    ret = cosc_write_uint64(buffer, sizeof(buffer), input);
-    assert_int_equal(ret, 8);
-    ret = cosc_read_uint64(buffer, sizeof(buffer), &value);
-    assert_int_equal(ret, 8);
-    assert_memory_equal(&value, &input, 8);
-}
-
-static void test_uint64_null(void **state)
-{
-    cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
-    ret = cosc_write_uint64(NULL, 0, input);
-    assert_int_equal(ret, 8);
-    ret = cosc_read_uint64(buffer, sizeof(buffer), NULL);
-    assert_int_equal(ret, 8);
-}
-
-static void test_uint64_overrun(void **state)
-{
-    cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
-    cosc_uint64 value = {0};
-    ret = cosc_write_uint64(buffer, 7, input);
-    assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_uint64(buffer, 7, &value);
-    assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_uint64(buffer, 7, NULL);
-    assert_int_equal(ret, COSC_EOVERRUN);
-}
-
-static void test_int64(void **state)
-{
-    cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
-    cosc_int64 value = {0};
-    ret = cosc_write_int64(buffer, sizeof(buffer), input);
-    assert_int_equal(ret, 8);
-    ret = cosc_read_int64(buffer, sizeof(buffer), &value);
-    assert_int_equal(ret, 8);
-    assert_memory_equal(&value, &input, 8);
-}
-
-static void test_int64_null(void **state)
-{
-    cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
-    ret = cosc_write_int64(NULL, 0, input);
-    assert_int_equal(ret, 8);
-    ret = cosc_read_int64(buffer, sizeof(buffer), NULL);
-    assert_int_equal(ret, 8);
-}
-
-static void test_int64_overrun(void **state)
-{
-    cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
-    cosc_int64 value = {0};
-    ret = cosc_write_int64(buffer, 7, input);
-    assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_int64(buffer, 7, &value);
-    assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_int64(buffer, 7, NULL);
-    assert_int_equal(ret, COSC_EOVERRUN);
-}
-
-static void test_float64(void **state)
-{
-    cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
-    cosc_float64 value = {0};
+    cosc_float64 value = {0, 0};
+    cosc_float64 input = {0x1234, 0x5678};
     ret = cosc_write_float64(buffer, sizeof(buffer), input);
     assert_int_equal(ret, 8);
     ret = cosc_read_float64(buffer, sizeof(buffer), &value);
     assert_int_equal(ret, 8);
-    assert_memory_equal(&value, &input, 8);
+    assert_int_equal(value.hi, 0x1234);
+    assert_int_equal(value.lo, 0x5678);
 }
 
 static void test_float64_null(void **state)
 {
     cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
+    cosc_float64 input = {0x1234, 0x5678};
     ret = cosc_write_float64(NULL, 0, input);
     assert_int_equal(ret, 8);
     ret = cosc_read_float64(buffer, sizeof(buffer), NULL);
@@ -457,8 +428,8 @@ static void test_float64_null(void **state)
 static void test_float64_overrun(void **state)
 {
     cosc_int32 ret;
-    cosc_uint64 input = {0x87654321, 0x87654321};
-    cosc_float64 value = {0};
+    cosc_float64 value = {0, 0};
+    cosc_float64 input = {0x1234, 0x5678};
     ret = cosc_write_float64(buffer, 7, input);
     assert_int_equal(ret, COSC_EOVERRUN);
     ret = cosc_read_float64(buffer, 7, &value);
@@ -467,7 +438,7 @@ static void test_float64_overrun(void **state)
     assert_int_equal(ret, COSC_EOVERRUN);
 }
 
-#endif
+#endif /* COSC_NOFLOAT64 */
 
 static void test_string(void **state)
 {

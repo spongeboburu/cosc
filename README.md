@@ -91,7 +91,7 @@ Defined at compile and include time:
 - `COSC_NOARRAY` to remove the support for arrays.
 - `COSC_NODUMP` to remove the dump functions.
 - `COSC_NOSTDINT` for no inclusion of `stdint.h`.
-- `COSC_NO64` to typedef all 64-bit types as `cosc_64bits`.
+- `COSC_NOINT64` to typedef cosc_int64 and cosc_uint64 types as `cosc_64bits`.
 - `COSC_NOFLOAT32` to typedef cosc_float32 as `cosc_uint32`.
 - `COSC_NOFLOAT64` to typedef cosc_float64 as `cosc_uint64`.
 - `COSC_TYPE_UINT32` used to override typedef `cosc_uint32`.

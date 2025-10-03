@@ -15,10 +15,10 @@
  * - COSC_NOARRAY to remove the support for arrays.
  * - COSC_NOSTDINT to not include `stdint.h`.
  * - COSC_NODUMP to remove the dump functions.
- * - COSC_NO64 to typedef all 64-bit types as @ref cosc_64bits.
- * - COSC_NOFLOAT32 to typedef cosc_float32 as @ref cosc_uint32.
- * - COSC_NOFLOAT64 to typedef cosc_float64 as @ref cosc_uint64
- *   or @ref cosc_64bits if COSC_NO64 is also defined.
+ * - COSC_NOINT64 to typedef `cosc_int64` and `cosc_uint64` as @ref cosc_64bits.
+ * - COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
+ * - COSC_NOFLOAT64 to typedef `cosc_float64` as @ref cosc_uint64
+ *   or @ref cosc_64bits if COSC_NOINT64 is also defined.
  *
  * Type overrides (also at compile AND include time):
  *
@@ -30,7 +30,7 @@
  * - COSC_TYPE_FLOAT64 used to override typedef @ref cosc_float64.
  *
  * NOTE that type overrides for 64-bit types does not work
- * if COSC_NO64 is defined in which case all 64-bit types
+ * if COSC_NOINT64 is defined in which case all 64-bit types
  * will be typedef as @ref cosc_64bits.
  *
  * @section license License
@@ -123,7 +123,7 @@
  * @note If defined it must be at both compile and include time.
  */
 
-#if defined(COSC_NO64) && !defined(COSC_NOFLOAT64)
+#if defined(COSC_NOINT64) && !defined(COSC_NOFLOAT64)
 #define COSC_NOFLOAT64
 #endif
 
@@ -138,7 +138,7 @@
 #define COSC_TYPE_UINT32 uint32_t
 #endif
 
-#ifndef COSC_NO64
+#ifndef COSC_NOINT64
 #ifndef COSC_TYPE_INT64
 #define COSC_TYPE_INT64 int64_t
 #endif
@@ -146,7 +146,7 @@
 #define COSC_TYPE_INT64 struct cosc_64bits
 #endif
 
-#ifndef COSC_NO64
+#ifndef COSC_NOINT64
 #ifndef COSC_TYPE_UINT64
 #define COSC_TYPE_UINT64 uint64_t
 #endif
@@ -163,7 +163,7 @@
 #define COSC_TYPE_UINT32 unsigned int
 #endif
 
-#ifndef COSC_NO64
+#ifndef COSC_NOINT64
 #ifndef COSC_TYPE_INT64
 #define COSC_TYPE_INT64 long long
 #endif
@@ -171,7 +171,7 @@
 #define COSC_TYPE_INT64 struct cosc_64bits
 #endif
 
-#ifndef COSC_NO64
+#ifndef COSC_NOINT64
 #ifndef COSC_TYPE_UINT64
 #define COSC_TYPE_UINT64 unsigned long long
 #endif
@@ -643,7 +643,7 @@ COSC_API cosc_uint32 cosc_timetag_to_time(
  * @param seconds The time in seconds.
  * @param nanos The time nanos.
  * @returns The timetag.
- * @warning Beware when COSC_NO64 is defined! Because I failed to implement
+ * @warning Beware when COSC_NOINT64 is defined! Because I failed to implement
  * a 64-bit division using only 32 bit integers the resolution of @p nanos
  * is reduced to 1/10th milliseconds instead of 1/4 nanoseconds.
  */

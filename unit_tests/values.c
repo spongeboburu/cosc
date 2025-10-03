@@ -21,18 +21,17 @@ static const union cosc_value WRITE_VALUES[11] =
     {.r = 0x87654321},
     {.c = 'A'},
     {.m = {1, 2, 3, 4}},
-#ifdef COSC_NO64
+#ifdef COSC_NOINT64
     {.h = {0x12345678, 0x12345678}},
     {.t = {0x87654321, 0x87654321}},
-    {.d = {0x12345678, 0x12345678}},
 #else
     {.h = 0x1234567812345678},
     {.t = 0x8765432187654321},
+#endif
 #ifdef COSC_NOFLOAT64
-    {.d = 12345678},
+    {.d = {0x1234, 0x5678}},
 #else
     {.d = 1234.5678},
-#endif
 #endif
     {.s = {"Hello World!", 1024}},
     {.s = {"Hello World!", 1024}},
