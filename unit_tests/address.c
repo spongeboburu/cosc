@@ -8,8 +8,6 @@
 #include <stdio.h>
 #include "cosc.h"
 
-#ifndef COSC_NOEXTRAS
-
 static void test_address_valid(void **state)
 {
     cosc_int32 invalid = 0;
@@ -27,6 +25,8 @@ static void test_address_invalid(void **state)
     assert_false(cosc_address_validate("/blahbl*ah", 1024, &invalid));
     assert_int_equal(invalid, 7);
 }
+
+#ifndef COSC_NOPATTERN
 
 static void test_address_match_equal(void **state)
 {
@@ -57,25 +57,21 @@ static void test_address_match_digit(void **state)
 {
     assert_true(cosc_pattern_match("/hello/0123456789/world", 1024, "/hello/##########/world", 1024));
 }
+#endif
 
 int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_address_valid),
         cmocka_unit_test(test_address_invalid),
+#ifndef COSC_NOPATTERN
         cmocka_unit_test(test_address_match_equal),
         cmocka_unit_test(test_address_match_asterisk),
         cmocka_unit_test(test_address_match_question),
         cmocka_unit_test(test_address_match_charset),
         cmocka_unit_test(test_address_match_stringset),
         cmocka_unit_test(test_address_match_digit),
+#endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-#else
-int main(void)
-{
-    printf("COSC_NOEXTRAS defined, nothing to test.\n");
-    return 0;
-}
-#endif

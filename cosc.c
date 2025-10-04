@@ -358,7 +358,7 @@ static void cosc_add64(struct cosc_64bits *augend, cosc_uint32 addend)
 
 #endif /* COSC_NOINT64 */
 
-#ifndef COSC_NOEXTRAS
+#ifndef COSC_NOPATTERN
 
 static cosc_int32 cosc_strncmp(const char *a, cosc_int32 a_n, const char *b, cosc_int32 b_n)
 {
@@ -376,65 +376,6 @@ static cosc_int32 cosc_strncmp(const char *a, cosc_int32 a_n, const char *b, cos
             return 1;
         if (a[i] == 0)
             break;
-    }
-    return 0;
-}
-
-static cosc_int32 cosc_type_is_valid(
-    char type,
-    cosc_int32 is_pattern
-)
-{
-    switch (type)
-    {
-    case 'i':
-    case 'f':
-    case 's':
-    case 'b':
-    case 'h':
-    case 't':
-    case 'd':
-    case 'S':
-    case 'c':
-    case 'r':
-    case 'm':
-    case 'T':
-    case 'F':
-    case 'N':
-    case 'I':
-        return 1;
-    }
-    if (is_pattern)
-    {
-        switch (type)
-        {
-        case '*':
-        case '?':
-        case '[':
-        case '{':
-        case '#':
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static cosc_int32 cosc_type_is_payload(char type)
-{
-    switch (type)
-    {
-    case 'i':
-    case 'f':
-    case 's':
-    case 'b':
-    case 'h':
-    case 't':
-    case 'd':
-    case 'S':
-    case 'c':
-    case 'r':
-    case 'm':
-        return 1;
     }
     return 0;
 }
@@ -523,6 +464,65 @@ static cosc_int32 cosc_stringset_match(
         *forward = len;
     if (s_forward)
         *s_forward = 0;
+    return 0;
+}
+
+static cosc_int32 cosc_type_is_valid(
+    char type,
+    cosc_int32 is_pattern
+)
+{
+    switch (type)
+    {
+    case 'i':
+    case 'f':
+    case 's':
+    case 'b':
+    case 'h':
+    case 't':
+    case 'd':
+    case 'S':
+    case 'c':
+    case 'r':
+    case 'm':
+    case 'T':
+    case 'F':
+    case 'N':
+    case 'I':
+        return 1;
+    }
+    if (is_pattern)
+    {
+        switch (type)
+        {
+        case '*':
+        case '?':
+        case '[':
+        case '{':
+        case '#':
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static cosc_int32 cosc_type_is_payload(char type)
+{
+    switch (type)
+    {
+    case 'i':
+    case 'f':
+    case 's':
+    case 'b':
+    case 'h':
+    case 't':
+    case 'd':
+    case 'S':
+    case 'c':
+    case 'r':
+    case 'm':
+        return 1;
+    }
     return 0;
 }
 
@@ -977,7 +977,7 @@ cosc_int32 cosc_signature_match(
     return 0;
 }
 
-#endif /* !COSC_NOEXTRAS */
+#endif /* !COSC_NOPATTERN */
 
 cosc_uint32 cosc_timetag_to_time(
     cosc_uint64 timetag,
@@ -1901,7 +1901,7 @@ cosc_int32 cosc_read_message(
     return req;
 }
 
-#if !defined(COSC_NOSTDLIB) && !defined(COSC_NODUMP) && !defined(COSC_NOEXTRAS)
+#if !defined(COSC_NOSTDLIB) && !defined(COSC_NODUMP)
 
 #ifdef __cplusplus
 #include <cstdio>

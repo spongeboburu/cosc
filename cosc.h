@@ -9,8 +9,7 @@
  *
  * - COSC_NOSTDLIB for no use of the standard library.
  *   This will also remove the dump functions.
- * - COSC_NOEXTRAS to remove the address and typetag
- *   related functions.
+ * - COSC_NOPATTERN to remove the pattern matching functions.
  * - COSC_NOSWAP for no endian swapping.
  * - COSC_NOARRAY to remove the support for arrays.
  * - COSC_NOSTDINT to not include `stdint.h` (or <cstdint> if C++).
@@ -435,7 +434,7 @@ struct cosc_message
 extern "C" {
 #endif
 
-#ifndef COSC_NOEXTRAS
+#ifndef COSC_NOPATTERN
 
 /**
  * Feature test for 64-bit integer support.
@@ -480,7 +479,7 @@ COSC_API cosc_int32 cosc_address_char_validate(
  * @note If the address is valid the value stored to @p invalid
  * will be -1.
  * @note Invalid characters are "#*,?[]{}" and any ASCII <= 32.
- * @note This function will not be available if COSC_NOEXTRAS
+ * @note This function will not be available if COSC_NOPATTERN
  * is defined.
  * @see cosc_typetag_validate() and cosc_pattern_validate().
  */
@@ -494,7 +493,7 @@ COSC_API cosc_int32 cosc_address_validate(
  * Check if an typetag character is valid.
  * @param c The character.
  * @returns Non-zero if valid or zero if invalid.
- * @note This function will not be available if COSC_NOEXTRAS
+ * @note This function will not be available if COSC_NOPATTERN
  * is defined.
  */
 COSC_API cosc_int32 cosc_typetag_char_validate(
@@ -515,7 +514,7 @@ COSC_API cosc_int32 cosc_typetag_char_validate(
  * due to an unclosed array '[' marker.
  * @note Typetags must always start with ',', even if they contain
  * no types.
- * @note This function will not be available if COSC_NOEXTRAS
+ * @note This function will not be available if COSC_NOPATTERN
  * is defined.
  * @see cosc_address_validate() and cosc_pattern_validate().
  */
@@ -543,7 +542,7 @@ COSC_API cosc_int32 cosc_typetag_validate(
  * indicating that some types may have been truncated to fit @p s.
  * @note If cosc was built with COSC_NOARRAY the value stored
  * to @p array_members will always be 0.
- * @note This function will not be available if COSC_NOEXTRAS
+ * @note This function will not be available if COSC_NOPATTERN
  * is defined.
  */
 COSC_API cosc_int32 cosc_typetag_payload(
@@ -558,7 +557,7 @@ COSC_API cosc_int32 cosc_typetag_payload(
  * Check if an pattern character is valid.
  * @param c The character.
  * @returns Non-zero if valid or zero if invalid.
- * @note This function will not be available if COSC_NOEXTRAS
+ * @note This function will not be available if COSC_NOPATTERN
  * is defined.
  */
 COSC_API cosc_int32 cosc_pattern_char_validate(
@@ -581,7 +580,7 @@ COSC_API cosc_int32 cosc_pattern_char_validate(
  * cosc_pattern_match().
  * @note When matching typetags the comma prefix and any array
  * syntax characters are removed from the matching.
- * @note This function will not be available if COSC_NOEXTRAS
+ * @note This function will not be available if COSC_NOPATTERN
  * is defined.
  */
 COSC_API cosc_int32 cosc_pattern_validate(
@@ -601,7 +600,7 @@ COSC_API cosc_int32 cosc_pattern_validate(
  * of OSC typetags the array brackets are ignored when matching.
  * @note For typetags the comma prefix and array brackets are ignored
  * and should be omitted from the @p pattern.
- * @note This function will not be available if COSC_NOEXTRAS
+ * @note This function will not be available if COSC_NOPATTERN
  * is defined.
  *
  * Pattern syntax:
@@ -637,7 +636,7 @@ COSC_API cosc_int32 cosc_pattern_match(
  * @param prefix Non-zero to expect a message with a 32-bit signed
  * size integer prefix.
  * @returns Non-zero when matching or zero for no match.
- * @note This function will not be available if COSC_NOEXTRAS
+ * @note This function will not be available if COSC_NOPATTERN
  * is defined.
  */
 COSC_API cosc_int32 cosc_signature_match(
@@ -650,7 +649,7 @@ COSC_API cosc_int32 cosc_signature_match(
     cosc_int32 prefix
 );
 
-#endif /* !COSC_NOEXTRAS */
+#endif /* !COSC_NOPATTERN */
 
 /**
  * Convert a timetag to seconds and nanoseconds.
@@ -1399,8 +1398,8 @@ COSC_API cosc_int32 cosc_read_message(
  * @returns The length of the string, excluding the zero terminator.
  * @note The returned length may be greater than or equal to @p n indicating
  * that the string was truncated.
- * @note This function will not be available if COSC_NOSTDLIB, COSC_NOEXTRAS
- * or COSC_NODUMP are defined.
+ * @note This function will not be available if COSC_NOSTDLIB or COSC_NODUMP
+ * are defined.
  */
 COSC_API cosc_int32 cosc_value_dump(
     char *s,
@@ -1417,8 +1416,8 @@ COSC_API cosc_int32 cosc_value_dump(
  * @returns The length of the string, excluding the zero terminator.
  * @note The returned length may be greater than or equal to @p n indicating
  * that the string was truncated.
- * @note This function will not be available if COSC_NOSTDLIB, COSC_NOEXTRAS
- * or COSC_NODUMP are defined.
+ * @note This function will not be available if COSC_NOSTDLIB or COSC_NODUMP
+ * are defined.
  */
 COSC_API cosc_int32 cosc_message_dump(
     char *s,

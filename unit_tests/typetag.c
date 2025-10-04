@@ -8,8 +8,6 @@
 #include <stdio.h>
 #include "cosc.h"
 
-#ifndef COSC_NOEXTRAS
-
 static void test_typetag_validate(void **state)
 {
     cosc_int32 invalid = 0;
@@ -26,6 +24,8 @@ static void test_typetag_validate(void **state)
     assert_false(cosc_typetag_validate("", 1024, &invalid));
     assert_int_equal(invalid, -1);
 }
+
+#ifndef COSC_NOPATTERN
 
 static void test_typetag_match_equal(void **state)
 {
@@ -148,24 +148,20 @@ static void test_typetag_match_scalar(void **state)
     assert_false(cosc_pattern_match(",I", 1024, "#", 1024));
 }
 
+#endif
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_typetag_validate),
+#ifndef COSC_NOPATTERN
         cmocka_unit_test(test_typetag_match_equal),
         cmocka_unit_test(test_typetag_match_asterisk),
         cmocka_unit_test(test_typetag_match_question),
         cmocka_unit_test(test_typetag_match_charset),
         cmocka_unit_test(test_typetag_match_stringset),
         cmocka_unit_test(test_typetag_match_scalar),
+#endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-
-#else
-int main(void)
-{
-    printf("COSC_NOEXTRAS defined, nothing to test.\n");
-    return 0;
-}
-#endif

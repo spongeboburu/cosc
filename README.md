@@ -85,7 +85,7 @@ Defined at compile and include time:
 
 - `COSC_NOSTDLIB` for no use of the standard library.
     This will also remove the dump functions.
-- `COSC_NOEXTRAS` to remove the address and typetag related functions.
+- `COSC_NOPATTERN` to remove the pattern matching functions.
 - `COSC_NOSWAP` for no endian swapping.
 - `COSC_NOARRAY` to remove the support for arrays.
 - `COSC_NODUMP` to remove the dump functions.
