@@ -67,16 +67,15 @@ may provide a modest performance boost if arrays are not required.
 ## Requirements
 
 - C99 or C++11 compatible compiler.
-- 32-bit integers.
+- 32-bit signed and unsigned integer support.
 
 Optional:
 
 - 64-bit integers.
-- IEEE 754 single precision (64-bit) float.
+- IEEE 754 single precision (32-bit) float.
 - IEEE 754 double precision (64-bit) float.
-- Standard C library.
-- stdint.h for fixed width integer types.
-- stdio.h and inttypes.h for debug dump / printing functions.
+- Standard C library (or standard C++ library).
+- Standard C headers (or C++ headers).
 - cmake for building.
 
 
@@ -90,10 +89,10 @@ Defined at compile and include time:
 - `COSC_NOSWAP` for no endian swapping.
 - `COSC_NOARRAY` to remove the support for arrays.
 - `COSC_NODUMP` to remove the dump functions.
-- `COSC_NOSTDINT` for no inclusion of `stdint.h`.
-- `COSC_NOINT64` to typedef cosc_int64 and cosc_uint64 types as `cosc_64bits`.
-- `COSC_NOFLOAT32` to typedef cosc_float32 as `cosc_uint32`.
-- `COSC_NOFLOAT64` to typedef cosc_float64 as `cosc_uint64`.
+- `COSC_NOSTDINT` for no inclusion of `stdint.h` (or <cstdint> if C++).
+- `COSC_NOINT64` to typedef `cosc_int64` and `cosc_uint64` types as `cosc_64bits`.
+- `COSC_NOFLOAT32` to typedef `cosc_float32` as `cosc_uint32`.
+- `COSC_NOFLOAT64` to typedef `cosc_float64` as `cosc_uint64`.
 - `COSC_TYPE_UINT32` used to override typedef `cosc_uint32`.
 - `COSC_TYPE_INT32` used to override typedef `cosc_int32`.
 - `COSC_TYPE_FLOAT32` used to override typedef `cosc_float32`.

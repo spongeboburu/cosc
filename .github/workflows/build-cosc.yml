@@ -5,6 +5,7 @@ on:
       - 'main'
     paths-ignore:
       - '.github/workflows/*'
+      - 'bindings/*'
   workflow_dispatch:
 
 concurrency:

@@ -13,7 +13,7 @@
  *   related functions.
  * - COSC_NOSWAP for no endian swapping.
  * - COSC_NOARRAY to remove the support for arrays.
- * - COSC_NOSTDINT to not include `stdint.h`.
+ * - COSC_NOSTDINT to not include `stdint.h` (or <cstdint> if C++).
  * - COSC_NODUMP to remove the dump functions.
  * - COSC_NOINT64 to typedef `cosc_int64` and `cosc_uint64` as @ref cosc_64bits.
  * - COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
@@ -29,9 +29,9 @@
  * - COSC_TYPE_INT64 used to override typedef @ref cosc_int64.
  * - COSC_TYPE_FLOAT64 used to override typedef @ref cosc_float64.
  *
- * NOTE that type overrides for 64-bit types does not work
- * if COSC_NOINT64 is defined in which case all 64-bit types
- * will be typedef as @ref cosc_64bits.
+ * NOTE that type overrides will not work for types affected by
+ * COSC_NOINT64, COSC_FLOAT32 or COSC_NOFLOAT64 when those
+ * are defined.
  *
  * @section license License
  *
@@ -129,7 +129,11 @@
 
 #ifndef COSC_NOSTDINT
 
+#ifdef __cplusplus
+#include <cstdint>
+#else
 #include <stdint.h>
+#endif
 
 #ifndef COSC_TYPE_INT32
 #define COSC_TYPE_INT32 int32_t
@@ -432,12 +436,6 @@ extern "C" {
 #endif
 
 #ifndef COSC_NOEXTRAS
-
-/**
- * Feature test if cosc was built for big endians.
- * @returns Non-zero if cosc was built for big endians.
- */
-COSC_API cosc_int32 cosc_feature_bigendian(void);
 
 /**
  * Feature test for 64-bit integer support.
