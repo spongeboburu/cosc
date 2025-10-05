@@ -283,6 +283,7 @@ if(NOT EMSCRIPTEN)
         add_unit_test("${unit_test_name}" "_nostdlib" "-DCOSC_NOSTDLIB")
         add_unit_test("${unit_test_name}" "_nofloat" "-DCOSC_NOFLOAT32 -DCOSC_NOFLOAT64")
         add_unit_test("${unit_test_name}" "_noint64" "-DCOSC_NOINT64")
+        add_unit_test("${unit_test_name}" "_no64" "-DCOSC_NOINT64 -DCOSC_NOFLOAT64")
         add_unit_test("${unit_test_name}" "_noarray" "-DCOSC_NOARRAY")
     endforeach()
 

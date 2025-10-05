@@ -444,34 +444,34 @@ static void test_string(void **state)
 {
     cosc_int32 ret;
     cosc_int32 len = -1;
-    ret = cosc_write_string(buffer, sizeof(buffer), "", 1024);
+    ret = cosc_write_string(buffer, sizeof(buffer), "", 1024, 0);
     assert_int_equal(ret, 4);
-    ret = cosc_read_string(buffer, sizeof(buffer), &len);
+    ret = cosc_read_string(buffer, sizeof(buffer), 0, 0, &len);
     assert_int_equal(ret, 4);
     assert_int_equal(len, 0);
-    ret = cosc_write_string(buffer, sizeof(buffer), "a", 1024);
+    ret = cosc_write_string(buffer, sizeof(buffer), "a", 1024, 0);
     assert_int_equal(ret, 4);
-    ret = cosc_read_string(buffer, sizeof(buffer), &len);
+    ret = cosc_read_string(buffer, sizeof(buffer), 0, 0, &len);
     assert_int_equal(ret, 4);
     assert_int_equal(len, 1);
-    ret = cosc_write_string(buffer, sizeof(buffer), "ab", 1024);
+    ret = cosc_write_string(buffer, sizeof(buffer), "ab", 1024, 0);
     assert_int_equal(ret, 4);
-    ret = cosc_read_string(buffer, sizeof(buffer), &len);
+    ret = cosc_read_string(buffer, sizeof(buffer), 0, 0, &len);
     assert_int_equal(ret, 4);
     assert_int_equal(len, 2);
-    ret = cosc_write_string(buffer, sizeof(buffer), "abc", 1024);
+    ret = cosc_write_string(buffer, sizeof(buffer), "abc", 1024, 0);
     assert_int_equal(ret, 4);
-    ret = cosc_read_string(buffer, sizeof(buffer), &len);
+    ret = cosc_read_string(buffer, sizeof(buffer), 0, 0, &len);
     assert_int_equal(ret, 4);
     assert_int_equal(len, 3);
-    ret = cosc_write_string(buffer, sizeof(buffer), "abcd", 1024);
+    ret = cosc_write_string(buffer, sizeof(buffer), "abcd", 1024, 0);
     assert_int_equal(ret, 8);
-    ret = cosc_read_string(buffer, sizeof(buffer), &len);
+    ret = cosc_read_string(buffer, sizeof(buffer), 0, 0, &len);
     assert_int_equal(ret, 8);
     assert_int_equal(len, 4);
-    ret = cosc_write_string(buffer, sizeof(buffer), "abcd", 2);
+    ret = cosc_write_string(buffer, sizeof(buffer), "abcd", 2, 0);
     assert_int_equal(ret, 4);
-    ret = cosc_read_string(buffer, sizeof(buffer), &len);
+    ret = cosc_read_string(buffer, sizeof(buffer), 0, 0, &len);
     assert_int_equal(ret, 4);
     assert_int_equal(len, 2);
 }
@@ -480,13 +480,13 @@ static void test_string_null(void **state)
 {
     cosc_int32 ret;
     cosc_int32 len = -1;
-    ret = cosc_write_string(buffer, sizeof(buffer), "abcd", 1024);
+    ret = cosc_write_string(buffer, sizeof(buffer), "abcd", 1024, 0);
     assert_int_equal(ret, 8);
-    ret = cosc_read_string(buffer, sizeof(buffer), NULL);
+    ret = cosc_read_string(buffer, sizeof(buffer), 0, 0, NULL);
     assert_int_equal(ret, 8);
-    ret = cosc_write_string(buffer, sizeof(buffer), NULL, 1024);
+    ret = cosc_write_string(buffer, sizeof(buffer), NULL, 1024, 0);
     assert_int_equal(ret, 4);
-    ret = cosc_read_string(buffer, sizeof(buffer), &len);
+    ret = cosc_read_string(buffer, sizeof(buffer), 0, 0, &len);
     assert_int_equal(ret, 4);
     assert_int_equal(len, 0);
 }
@@ -495,11 +495,11 @@ static void test_string_overrun(void **state)
 {
     cosc_int32 ret;
     cosc_int32 len = -1;
-    ret = cosc_write_string(buffer, 7, "abcd", 1024);
+    ret = cosc_write_string(buffer, 7, "abcd", 1024, 0);
     assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_string(buffer, 7, &len);
+    ret = cosc_read_string(buffer, 7, 0, 0, &len);
     assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_string(buffer, 7, NULL);
+    ret = cosc_read_string(buffer, 7, 0, 0, NULL);
     assert_int_equal(ret, COSC_EOVERRUN);
 }
 
@@ -511,34 +511,34 @@ static void test_blob(void **state)
     const void *output = "BLEH";
     ret = cosc_write_blob(buffer, sizeof(buffer), input, 0);
     assert_int_equal(ret, 4);
-    ret = cosc_read_blob(buffer, sizeof(buffer), &output, &psize);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, &output, &psize);
     assert_int_equal(ret, 4);
     assert_int_equal(psize, 0);
     assert_null(output);
     ret = cosc_write_blob(buffer, sizeof(buffer), input, 1);
     assert_int_equal(ret, 8);
-    ret = cosc_read_blob(buffer, sizeof(buffer), &output, &psize);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, &output, &psize);
     assert_int_equal(ret, 8);
     assert_int_equal(psize, 1);
     assert_non_null(output);
     assert_memory_equal(output, input, 1);
     ret = cosc_write_blob(buffer, sizeof(buffer), input, 2);
     assert_int_equal(ret, 8);
-    ret = cosc_read_blob(buffer, sizeof(buffer), &output, &psize);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, &output, &psize);
     assert_int_equal(ret, 8);
     assert_int_equal(psize, 2);
     assert_non_null(output);
     assert_memory_equal(output, input, 2);
     ret = cosc_write_blob(buffer, sizeof(buffer), input, 3);
     assert_int_equal(ret, 8);
-    ret = cosc_read_blob(buffer, sizeof(buffer), &output, &psize);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, &output, &psize);
     assert_int_equal(ret, 8);
     assert_int_equal(psize, 3);
     assert_non_null(output);
     assert_memory_equal(output, input, 3);
     ret = cosc_write_blob(buffer, sizeof(buffer), input, 4);
     assert_int_equal(ret, 8);
-    ret = cosc_read_blob(buffer, sizeof(buffer), &output, &psize);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, &output, &psize);
     assert_int_equal(ret, 8);
     assert_int_equal(psize, 4);
     assert_non_null(output);
@@ -552,12 +552,12 @@ static void test_blob_null(void **state)
     const void *output = NULL;
     ret = cosc_write_blob(buffer, sizeof(buffer), NULL, 1);
     assert_int_equal(ret, 8);
-    ret = cosc_read_blob(buffer, sizeof(buffer), &output, &psize);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, &output, &psize);
     assert_int_equal(ret, 8);
     assert_int_equal(psize, 1);
     assert_non_null(output);
     assert_int_equal(((const char *)buffer)[4], 0);
-    ret = cosc_read_blob(buffer, sizeof(buffer), NULL, NULL);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, NULL, NULL);
     assert_int_equal(ret, 8);
 }
 
@@ -570,14 +570,14 @@ static void test_blob_overrun(void **state)
     cosc_write_int32(buffer, 4, 4);
     ret = cosc_write_blob(buffer, 7, input, 4);
     assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_blob(buffer, 7, &output, &psize);
+    ret = cosc_read_blob(buffer, 7, 0, 0, &output, &psize);
     assert_int_equal(ret, COSC_EOVERRUN);
     ret = cosc_write_blob(buffer, 7, NULL, 4);
     assert_int_equal(ret, COSC_EOVERRUN);
-    ret = cosc_read_blob(buffer, 7, NULL, NULL);
+    ret = cosc_read_blob(buffer, 7, 0, 0, NULL, NULL);
     assert_int_equal(ret, COSC_EOVERRUN);
     cosc_write_int32(buffer, 4, 2048);
-    ret = cosc_read_blob(buffer, 1024, NULL, NULL);
+    ret = cosc_read_blob(buffer, 1024, 0, 0, NULL, NULL);
     assert_int_equal(ret, COSC_EOVERRUN);
 }
 
@@ -587,10 +587,10 @@ static void test_blob_psize(void **state)
     cosc_int32 psize = -1;
     const void *output = "BLEH";
     cosc_write_int32(buffer, 4, -1);
-    ret = cosc_read_blob(buffer, sizeof(buffer), &output, &psize);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, &output, &psize);
     assert_int_equal(ret, COSC_EPSIZE);
     cosc_write_int32(buffer, 4, COSC_SIZE_MAX);
-    ret = cosc_read_blob(buffer, sizeof(buffer), &output, &psize);
+    ret = cosc_read_blob(buffer, sizeof(buffer), 0, 0, &output, &psize);
     assert_int_equal(ret, COSC_ESIZEMAX);
 }
 

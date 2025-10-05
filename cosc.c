@@ -467,6 +467,8 @@ static cosc_int32 cosc_stringset_match(
     return 0;
 }
 
+#endif /* !COSC_NOPATTERN */
+
 static cosc_int32 cosc_type_is_valid(
     char type,
     cosc_int32 is_pattern
@@ -743,6 +745,8 @@ cosc_int32 cosc_typetag_payload(
     return payloads;
 }
 
+#ifndef COSC_NOPATTERN
+
 cosc_int32 cosc_pattern_char_validate(
     char c
 )
@@ -968,7 +972,7 @@ cosc_int32 cosc_signature_match(
     }
     else if (size < 8)
         return 0;
-    sz = cosc_read_string(buffer, size, &len);
+    sz = cosc_read_string(buffer, size, 0, 0, &len);
     if (sz < 0)
         return sz;
     if (cosc_pattern_match((const char *)buffer, sz, apattern, apattern_n)
@@ -977,7 +981,7 @@ cosc_int32 cosc_signature_match(
     return 0;
 }
 
-#endif /* !COSC_NOPATTERN */
+#endif /* COSC_NOPATTERN */
 
 cosc_uint32 cosc_timetag_to_time(
     cosc_uint64 timetag,
@@ -1187,21 +1191,24 @@ cosc_int32 cosc_read_float64(
 cosc_int32 cosc_write_string(
     void *buffer,
     cosc_int32 size,
-    const char *s,
-    cosc_int32 n
+    const char *value,
+    cosc_int32 value_n,
+    cosc_int32 *length
 )
 {
     cosc_int32 len = 0, pad;
     if (buffer)
     {
-        if (s)
-            while (len < n && s[len] != 0)
+        if (value)
+        {
+            while (len < value_n && value[len] != 0)
             {
                 if (len >= size)
                     return COSC_EOVERRUN;
-                ((char *)buffer)[len] = s[len];
+                ((char *)buffer)[len] = value[len];
                 len++;
             }
+        }
         pad = COSC_PADMUST(len);
         if (len > COSC_SIZE_MAX - pad)
             return COSC_ESIZEMAX;
@@ -1211,27 +1218,44 @@ cosc_int32 cosc_write_string(
     }
     else
     {
-        if (s)
-            while (len < n && s[len] != 0)
+        if (value)
+            while (len < value_n && value[len] != 0)
                 len++;
         pad = COSC_PADMUST(len);
         if (len > COSC_SIZE_MAX - pad)
             return COSC_ESIZEMAX;
     }
+    if (length)
+        *length = len;
     return len + pad;
 }
 
 cosc_int32 cosc_read_string(
     const void *buffer,
     cosc_int32 size,
+    char *value,
+    cosc_int32 value_n,
     cosc_int32 *length
 )
 {
     cosc_int32 len = 0, pad;
     if (size < 4)
         return COSC_EOVERRUN;
-    while (len < size && ((const char *)buffer)[len] != 0)
-        len++;
+    if (value && value_n > 0)
+    {
+        while (len < size && ((const char *)buffer)[len] != 0)
+        {
+            if (len < value_n)
+                value[len] = ((const char *)buffer)[len];
+            len++;
+        }
+        value[len < value_n ? len : value_n - 1] = 0;
+    }
+    else
+    {
+        while (len < size && ((const char *)buffer)[len] != 0)
+            len++;
+    }
     pad = COSC_PADMUST(len);
     if (len > COSC_SIZE_MAX - pad)
         return COSC_ESIZEMAX;
@@ -1245,36 +1269,38 @@ cosc_int32 cosc_read_string(
 cosc_int32 cosc_write_blob(
     void *buffer,
     cosc_int32 size,
-    const void *data,
-    cosc_int32 data_size
+    const void *value,
+    cosc_int32 value_n
 )
 {
-    if (data_size < 0)
-        data_size = 0;
-    else if (data_size > COSC_SIZE_MAX - 4)
+    if (value_n < 0)
+        value_n = 0;
+    else if (value_n > COSC_SIZE_MAX - 4)
         return COSC_ESIZEMAX;
-    cosc_int32 pad = COSC_PAD(data_size);
-    if (data_size + 4 > COSC_SIZE_MAX - pad)
+    cosc_int32 pad = COSC_PAD(value_n);
+    if (value_n + 4 > COSC_SIZE_MAX - pad)
         return COSC_ESIZEMAX;
     if (buffer)
     {
-        if (data_size > size - pad - 4)
+        if (value_n > size - pad - 4)
             return COSC_EOVERRUN;
-        cosc_store_int32(buffer, data_size);
-        if (data)
+        cosc_store_int32(buffer, value_n);
+        if (value)
         {
-            cosc_memcpy((char *)buffer + 4, data, data_size);
-            cosc_memset((char *)buffer + 4 + data_size, 0, pad);
+            cosc_memcpy((char *)buffer + 4, value, value_n);
+            cosc_memset((char *)buffer + 4 + value_n, 0, pad);
         }
         else
-            cosc_memset((char *)buffer + 4, 0, data_size + pad);
+            cosc_memset((char *)buffer + 4, 0, value_n + pad);
     }
-    return data_size + pad + 4;
+    return value_n + pad + 4;
 }
 
 cosc_int32 cosc_read_blob(
     const void *buffer,
     cosc_int32 size,
+    void *value,
+    cosc_int32 value_n,
     const void **data,
     cosc_int32 *data_size
 )
@@ -1291,6 +1317,8 @@ cosc_int32 cosc_read_blob(
         return COSC_ESIZEMAX;
     if (psize + pad > size - 4)
         return COSC_EOVERRUN;
+    if (value && value_n > 0)
+        cosc_memcpy(value, (const char *)buffer + 4, psize < value_n ? psize : value_n);
     if (data)
         *data = psize > 0 ? (const char *)buffer + 4 : 0;
     if (data_size)
@@ -1438,13 +1466,13 @@ cosc_int32 cosc_write_signature(
             cosc_store_int32(buffer, psize);
             req += 4;
         }
-        sz = cosc_write_string((unsigned char *)buffer + req, size - req, address, address_n);
+        sz = cosc_write_string((unsigned char *)buffer + req, size - req, address, address_n, 0);
         if (sz < 0)
             return sz;
         if (sz > COSC_SIZE_MAX - req)
             return COSC_ESIZEMAX;
         req += sz;
-        sz = cosc_write_string((unsigned char *)buffer + req, size - req, typetag, typetag_n);
+        sz = cosc_write_string((unsigned char *)buffer + req, size - req, typetag, typetag_n, 0);
         if (sz < 0)
             return sz;
         if (sz > COSC_SIZE_MAX - req)
@@ -1457,13 +1485,13 @@ cosc_int32 cosc_write_signature(
     {
         if (psize >= 0)
             req += 4;
-        sz = cosc_write_string(0, 0, address, address_n);
+        sz = cosc_write_string(0, 0, address, address_n, 0);
         if (sz < 0)
             return sz;
         if (sz > COSC_SIZE_MAX - req)
             return COSC_ESIZEMAX;
         req += sz;
-        sz = cosc_write_string(0, 0, typetag, typetag_n);
+        sz = cosc_write_string(0, 0, typetag, typetag_n, 0);
         if (sz < 0)
             return sz;
         if (sz > COSC_SIZE_MAX - req)
@@ -1497,13 +1525,13 @@ cosc_int32 cosc_read_signature(
     }
     if (address)
         *address = (const char *)buffer + req;
-    sz = cosc_read_string((const char *)buffer + req, size - req, address_n);
+    sz = cosc_read_string((const char *)buffer + req, size - req, 0, 0, address_n);
     if (sz < 0)
         return sz;
     req += sz;
     if (typetag)
         *typetag = (const char *)buffer + req;
-    sz = cosc_read_string((const char *)buffer + req, size - req, typetag_n);
+    sz = cosc_read_string((const char *)buffer + req, size - req, 0, 0, typetag_n);
     if (sz < 0)
         return sz;
     req += sz;
@@ -1539,7 +1567,7 @@ cosc_int32 cosc_write_value(
         case 'c': return cosc_write_char(buffer, size, value ? value->c : 0);
         case 'm': return cosc_write_midi(buffer, size, value ? value->m : 0);
         case 's':
-        case 'S': return cosc_write_string(buffer, size, value ? value->s.s : 0, value ? value->s.length : 0);
+        case 'S': return cosc_write_string(buffer, size, value ? value->s.s : 0, value ? value->s.length : 0, 0);
         case 'b': return cosc_write_blob(buffer, size, value ? value->b.b : 0, value ? value->b.size : 0);
         case 'T':
         case 'F':
@@ -1560,7 +1588,7 @@ cosc_int32 cosc_write_value(
         case 't':
         case 'd': return 8;
         case 's':
-        case 'S': return cosc_write_string(0, 0, value ? value->s.s : 0, value ? value->s.length : 0);
+        case 'S': return cosc_write_string(0, 0, value ? value->s.s : 0, value ? value->s.length : 0, 0);
         case 'b': return  cosc_write_blob(0, 0, value ? value->b.b : 0, value ? value->b.size : 0);
         case 'T':
         case 'F':
@@ -1593,13 +1621,13 @@ cosc_int32 cosc_read_value(
         if (value)
         {
             value->s.s = (const char *)buffer;
-            return cosc_read_string(buffer, size, &value->s.length);
+            return cosc_read_string(buffer, size, 0, 0, &value->s.length);
         }
-        return cosc_read_string(buffer, size, 0);
+        return cosc_read_string(buffer, size, 0, 0, 0);
     case 'b':
         if (value)
-            return cosc_read_blob(buffer, size, &value->b.b, &value->b.size);
-        return cosc_read_blob(buffer, size, 0, 0);
+            return cosc_read_blob(buffer, size, 0, 0, &value->b.b, &value->b.size);
+        return cosc_read_blob(buffer, size, 0, 0, 0, 0);
     case 'T':
     case 'F':
     case 'N':
@@ -1988,7 +2016,7 @@ cosc_int32 cosc_message_dump(
     }
     if (!message)
         return snprintf(s, n, "NULL");
-    cosc_int32 value_count = cosc_typetag_payload(0, 0, message->typetag, message->typetag_n, NULL);
+    cosc_int32 value_count = cosc_typetag_payload(0, 0, message->typetag, message->typetag_n, 0);
     if (value_count > message->values_n)
         value_count = message->values_n;
     cosc_int32 len = 0;
@@ -2015,3 +2043,4 @@ cosc_int32 cosc_message_dump(
 }
 
 #endif /* !COSC_NODUMP && !COSC_NOSTDLIB && !COSC_NOEXTRAS */
+

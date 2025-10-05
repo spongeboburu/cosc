@@ -289,6 +289,16 @@ typedef COSC_TYPE_FLOAT64 cosc_float64;
 #define COSC_EPSIZE -5
 
 /**
+ * Used when the allocator fails.
+ */
+#define COSC_ENOMEM -6
+
+/**
+ * Invalid argument or operation.
+ */
+#define COSC_EINVAL -7
+
+/**
  * A value.
  */
 union cosc_value
@@ -918,8 +928,11 @@ COSC_API cosc_int32 cosc_read_float64(
  * @param[out] buffer If non-NULL store the OSC data here, if NULL
  * then no bytes are stored.
  * @param size Store at most this many bytes to @p buffer.
- * @param s The string.
- * @param n Read at most this many bytes from @p s.
+ * @param value The string.
+ * @param value_n Read at most this many bytes from @p s.
+ * @param[out] length If non-NULL and the function does not return a
+ * negative error code the length of the string, excluding the zero
+ * terminator, is stored here.
  * @returns The number of written bytes if @p buffer is non-NULL,
  * the required size if @p buffer is NULL or a negative error code
  * if the operation fails.
@@ -932,14 +945,17 @@ COSC_API cosc_int32 cosc_read_float64(
 COSC_API cosc_int32 cosc_write_string(
     void *buffer,
     cosc_int32 size,
-    const char *s,
-    cosc_int32 n
+    const char *value,
+    cosc_int32 value_n,
+    cosc_int32 *length
 );
 
 /**
  * Read a string.
  * @param buffer Read bytes from this buffer.
  * @param size Read at most this many bytes from @p buffer.
+ * @param[out] value If non-NULL store the string here.
+ * @param value_n Store at most this many bytes to @p value.
  * @param[out] length If non-NULL and the function does not return a
  * negative error code the length of the string, excluding the zero
  * terminator, is stored here.
@@ -953,6 +969,8 @@ COSC_API cosc_int32 cosc_write_string(
 COSC_API cosc_int32 cosc_read_string(
     const void *buffer,
     cosc_int32 size,
+    char *value,
+    cosc_int32 value_n,
     cosc_int32 *length
 );
 
@@ -961,8 +979,8 @@ COSC_API cosc_int32 cosc_read_string(
  * @param[out] buffer If non-NULL store the OSC data here, if NULL
  * then no bytes are stored.
  * @param size Store at most this many bytes to @p buffer.
- * @param data The blob data, may be NULL to fill with zeroes.
- * @param data_size The size of the blob data.
+ * @param value The blob data, may be NULL to fill with zeroes.
+ * @param value_n The size of the blob data.
  * @returns The number of written bytes if @p buffer is non-NULL,
  * the required size if @p buffer is NULL or a negative error code
  * if the operation fails.
@@ -975,16 +993,20 @@ COSC_API cosc_int32 cosc_read_string(
 COSC_API cosc_int32 cosc_write_blob(
     void *buffer,
     cosc_int32 size,
-    const void *data,
-    cosc_int32 data_size
+    const void *value,
+    cosc_int32 value_n
 );
 
 /**
  * Read a blob.
  * @param buffer Read bytes from this buffer.
  * @param size Read at most this many bytes from @p buffer.
- * @param[out] data If non-NULL and the function does not return a
- * negative error code a pointer to the data is stored here.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code store the blob data here.
+ * @param value_n Store at most this many bytes to @p value.
+ * @param[out] data If non-NULL and the function does not return a negative
+ * error code a pointer to the first byte of the blob data is stored here,
+ * or NULL if the blob has zero bytes.
  * @param[out] data_size If non-NULL and the function does not return a
  * negative error code the size of the blob data is stored here.
  * @returns The number of read bytes or a negative error code if the
@@ -999,6 +1021,8 @@ COSC_API cosc_int32 cosc_write_blob(
 COSC_API cosc_int32 cosc_read_blob(
     const void *buffer,
     cosc_int32 size,
+    void *value,
+    cosc_int32 value_n,
     const void **data,
     cosc_int32 *data_size
 );
@@ -1097,7 +1121,6 @@ COSC_API cosc_int32 cosc_read_midi(
  * if the operation fails.
  * @note You can use cosc_write_int32() to store a new @p psize at
  * the beginning of the buffer at a later time.
- * @see COSC_PADALIGN().
  *
  * Possible error codes:
  *
@@ -1156,7 +1179,6 @@ COSC_API cosc_int32 cosc_read_bundle(
  * @note You can use cosc_write_int32() to store a new @p psize at
  * the beginning of the buffer at a later time.
  * @note This function does NOT validate @p address or @p typetag.
- * @see COSC_PADALIGN().
  *
  * Possible error codes:
  *
@@ -1426,6 +1448,7 @@ COSC_API cosc_int32 cosc_message_dump(
 );
 
 #endif /* !COSC_NOSTDLIB && !COSC_NODUMP */
+
 
 #ifdef __cplusplus
 }
