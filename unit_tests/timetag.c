@@ -12,7 +12,7 @@ static void test_timetag_to_time(void **state)
 {
     cosc_uint64 timetag;
     cosc_uint32 seconds, nanos = 0xffffffff;
-#if defined(COSC_NO64) || defined(COSC_NOFLOAT64)
+#ifdef COSC_NOINT64
 
     timetag.hi = 0x12345678;
     timetag.lo = 0;

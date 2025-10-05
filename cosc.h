@@ -122,10 +122,6 @@
  * @note If defined it must be at both compile and include time.
  */
 
-#if defined(COSC_NOINT64) && !defined(COSC_NOFLOAT64)
-#define COSC_NOFLOAT64
-#endif
-
 #ifndef COSC_NOSTDINT
 
 #ifdef __cplusplus

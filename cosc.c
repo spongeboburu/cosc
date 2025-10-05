@@ -271,6 +271,7 @@ inline static cosc_float64 cosc_load_float64(
         COSC_COPY64SWAP(&tmp, buffer);
     else
         COSC_COPY64(&tmp, buffer);
+    return tmp;
 #else
     return COSC_PUN(cosc_uint64, cosc_float64, cosc_load_uint64(buffer));
 #endif
@@ -1558,10 +1559,13 @@ cosc_int32 cosc_write_value(
 #ifdef COSC_NOINT64
         case 'h': return cosc_write_int64(buffer, size, value ? value->h : zero64);
         case 't': return cosc_write_uint64(buffer, size, value ? value->t : zero64);
-        case 'd': return cosc_write_float64(buffer, size, value ? value->d : zero64);
 #else
         case 'h': return cosc_write_int64(buffer, size, value ? value->h : 0);
         case 't': return cosc_write_uint64(buffer, size, value ? value->t : 0);
+#endif
+#ifdef COSC_NOFLOAT64
+        case 'd': return cosc_write_float64(buffer, size, value ? value->d : zero64);
+#else
         case 'd': return cosc_write_float64(buffer, size, value ? value->d : 0);
 #endif
         case 'c': return cosc_write_char(buffer, size, value ? value->c : 0);
