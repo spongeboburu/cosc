@@ -570,7 +570,7 @@ cosc_int32 cosc_feature_swap(void)
 }
 
 cosc_int32 cosc_address_char_validate(
-    char c
+    cosc_int32 c
 )
 {
     switch (c)
@@ -624,7 +624,7 @@ cosc_int32 cosc_address_validate(
 }
 
 cosc_int32 cosc_typetag_char_validate(
-    char c
+    cosc_int32 c
 )
 {
     return cosc_type_is_valid(c, 0);
@@ -749,7 +749,7 @@ cosc_int32 cosc_typetag_payload(
 #ifndef COSC_NOPATTERN
 
 cosc_int32 cosc_pattern_char_validate(
-    char c
+    cosc_int32 c
 )
 {
     return cosc_type_is_valid(c, 1);
@@ -2046,5 +2046,5 @@ cosc_int32 cosc_message_dump(
     return len;
 }
 
-#endif /* !COSC_NODUMP && !COSC_NOSTDLIB && !COSC_NOEXTRAS */
+#endif /* !COSC_NODUMP && !COSC_NOSTDLIB */
 

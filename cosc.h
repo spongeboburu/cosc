@@ -472,7 +472,7 @@ COSC_API cosc_int32 cosc_feature_swap(void);
  * @returns Non-zero if valid or zero if invalid.
  */
 COSC_API cosc_int32 cosc_address_char_validate(
-    char c
+    cosc_int32 c
 );
 
 /**
@@ -503,7 +503,7 @@ COSC_API cosc_int32 cosc_address_validate(
  * is defined.
  */
 COSC_API cosc_int32 cosc_typetag_char_validate(
-    char c
+    cosc_int32 c
 );
 
 /**
@@ -567,7 +567,7 @@ COSC_API cosc_int32 cosc_typetag_payload(
  * is defined.
  */
 COSC_API cosc_int32 cosc_pattern_char_validate(
-    char c
+    cosc_int32 c
 );
 
 /**

@@ -233,15 +233,11 @@ if(NOT EMSCRIPTEN)
         values
         message
         timetag
+        address
+        typetag
+        basics
+        signature
         )
-    if(NOT COSC_NOEXTRAS)
-        set(unit_test_names ${unit_test_names}
-            address
-            typetag
-            basics
-            signature
-            )
-    endif()
     
     ExternalProject_Add(
         cmocka
