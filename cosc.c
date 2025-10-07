@@ -569,6 +569,42 @@ cosc_int32 cosc_feature_swap(void)
 #endif
 }
 
+cosc_int32 cosc_feature_array(void)
+{
+#ifdef COSC_NOARRAY
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+cosc_int32 cosc_feature_pattern(void)
+{
+#ifdef COSC_NOPATTERN
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+cosc_int32 cosc_feature_writer(void)
+{
+#ifdef COSC_NOWRITER
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+cosc_int32 cosc_feature_reader(void)
+{
+#ifdef COSC_NOREADER
+    return 0;
+#else
+    return 1;
+#endif
+}
+
 cosc_int32 cosc_address_char_validate(
     cosc_int32 c
 )
@@ -1330,17 +1366,17 @@ cosc_int32 cosc_read_blob(
 cosc_int32 cosc_write_char(
     void *buffer,
     cosc_int32 size,
-    char value
+    cosc_int32 value
 )
 {
     if (buffer)
     {
         if (size < 4)
             return COSC_EOVERRUN;
-        ((char *)buffer)[0] = value;
-        ((char *)buffer)[1] = 0;
-        ((char *)buffer)[2] = 0;
-        ((char *)buffer)[3] = 0;
+        ((unsigned char *)buffer)[0] = value;
+        ((unsigned char *)buffer)[1] = 0;
+        ((unsigned char *)buffer)[2] = 0;
+        ((unsigned char *)buffer)[3] = 0;
     }
     return 4;
 }
@@ -1348,7 +1384,7 @@ cosc_int32 cosc_write_char(
 cosc_int32 cosc_read_char(
     const void *buffer,
     cosc_int32 size,
-    char *value
+    cosc_int32 *value
 )
 {
     if (size < 4)
@@ -2048,3 +2084,676 @@ cosc_int32 cosc_message_dump(
 
 #endif /* !COSC_NODUMP && !COSC_NOSTDLIB */
 
+#if !defined(COSC_NOWRITER) && !defined(COSC_NOREADER)
+
+#define COSC_SERIAL_UPDATE_OVERRUN(op_serial, op_ret, op) \
+    do { \
+        if ((op_ret) == COSC_EOVERRUN) \
+            (op_serial)->overrun = (op) - ((op_serial)->buffer_size - cosc_serial_get_size(op_serial)); \
+        else if ((op_ret) == COSC_ESIZEMAX) \
+            (op_serial)->overrun = (op) - (COSC_SIZE_MAX - cosc_serial_get_size(op_serial)); \
+        else \
+            (op_serial)->overrun = 0; \
+    } while (0)
+
+
+static void cosc_serial_setup(
+    struct cosc_serial *serial,
+    cosc_int32 size,
+    struct cosc_level *levels,
+    cosc_int32 level_max,
+    cosc_uint32 flags
+)
+{
+    serial->buffer_size = size > 0 ? (size < COSC_SIZE_MAX ? size : COSC_SIZE_MAX) : 0;
+    serial->size = 0;
+    serial->overrun = 0;
+    serial->flags = flags;
+    serial->levels = levels;
+    serial->level_max = levels && level_max > 1 ? level_max : 0;
+    serial->level = -1;
+}
+
+static void cosc_serial_reset(
+    struct cosc_serial *serial
+)
+{
+    serial->size = 0;
+    serial->overrun = 0;
+    serial->level = -1;
+}
+
+static cosc_int32 cosc_serial_get_buffer_size(
+    const struct cosc_serial *serial
+)
+{
+    return serial->buffer_size;
+}
+
+static cosc_int32 cosc_serial_get_size(
+    const struct cosc_serial *serial
+)
+{
+    if (serial->level < 0)
+        return serial->size;
+    return serial->levels[serial->level].start + serial->levels[serial->level].size;
+}
+
+static cosc_int32 cosc_serial_get_overrun(
+    const struct cosc_serial *serial
+)
+{
+    return serial->overrun;
+}
+
+static cosc_int32 cosc_serial_get_level_max(
+    const struct cosc_serial *serial
+)
+{
+    return serial->level_max;
+}
+
+static cosc_int32 cosc_serial_get_level(
+    const struct cosc_serial *serial
+)
+{
+    return serial->level + 1;
+}
+
+static cosc_int32 cosc_serial_get_level_size(
+    const struct cosc_serial *serial
+)
+{
+    if (serial->level < 0)
+        return 0;
+    return serial->levels[serial->level].size;
+}
+
+static cosc_int32 cosc_serial_get_level_type(
+    const struct cosc_serial *serial
+)
+{
+    if (serial->level < 0)
+        return 0;
+    return serial->levels[serial->level].type;
+}
+
+static cosc_int32 cosc_serial_get_level_msgtype(
+    const struct cosc_serial *serial,
+    const unsigned char *buffer
+)
+{
+    if (serial->level < 0 || serial->levels[serial->level].type != 'M')
+        return 0;
+    cosc_int32 offset = serial->levels[serial->level].ttstart;
+    offset += serial->levels[serial->level].ttindex;
+    if (offset >= serial->levels[serial->level].ttend)
+        return 0;
+    offset += serial->levels[serial->level].start;
+    if (offset >= serial->levels[serial->level].size)
+        return 0;
+    return buffer[offset];
+}
+
+static cosc_int32 cosc_serial_next_valid_msgtype(
+    const struct cosc_serial *serial,
+    cosc_int32 end_on_array,
+    const unsigned char *buffer
+)
+{
+    if (serial->level < 0 || serial->levels[serial->level].type != 'M')
+        return 0;
+    cosc_int32 index = 0;
+    const char *buf = (const char *)buffer;
+    cosc_int32 len = serial->levels[serial->level].ttend - serial->levels[serial->level].ttstart;
+    buf += serial->levels[serial->level].start;
+    buf += serial->levels[serial->level].ttstart;
+    index = serial->levels[serial->level].ttindex;
+    if (index < len)
+        index++;
+    while (index < len)
+    {
+        if (buf[index] == ',' || buf[index] == '[')
+            index++;
+        else if (buf[index] == ']')
+        {
+            if (end_on_array)
+            {
+                index++;
+                break;
+            }
+            while (index > 0 && buf[index] != '[')
+                index--;
+        }
+        else
+            break;
+    }
+    if (index >= len)
+        return 0;
+    return index;
+}
+
+static cosc_int32 cosc_serial_get_prefix(
+    const struct cosc_serial *serial
+)
+{
+    if (
+        (serial->flags & COSC_SERIAL_PREFIX)
+        || serial->size > 0
+        || serial->level >= 0
+    )
+        return 0;
+    return -1;
+}
+
+static cosc_int32 cosc_serial_open_level(
+    struct cosc_serial *serial,
+    cosc_int32 level_type,
+    cosc_int32 level_size,
+    const unsigned char *buffer
+)
+{
+    if (serial->level >= serial->level_max - 1)
+        return COSC_ELEVELMAX;
+    if (serial->level < 0 && serial->size > 0 && !(serial->flags & COSC_SERIAL_PREFIX))
+        return COSC_EPREFIXFLAG;
+    switch (level_type)
+    {
+    case COSC_LEVEL_TYPE_BUNDLE:
+        if (serial->level < 0
+            || serial->levels[serial->level].type == COSC_LEVEL_TYPE_BLOB)
+            break;
+        return COSC_ELEVELTYPE;
+    case COSC_LEVEL_TYPE_MESSAGE:
+        if (serial->level < 0
+            || serial->levels[serial->level].type == COSC_LEVEL_TYPE_BLOB
+            || serial->levels[serial->level].type == COSC_LEVEL_TYPE_BUNDLE)
+            break;
+        return COSC_ELEVELTYPE;
+    case COSC_LEVEL_TYPE_BLOB:
+        if (cosc_serial_get_level_msgtype(serial, buffer) == 'b')
+            break;
+        return COSC_ELEVELTYPE;
+    default:
+        return COSC_ELEVELTYPE;
+    }
+    cosc_int32 pre_level_size = cosc_serial_get_size(serial);
+    serial->level++;
+    serial->levels[serial->level].type = level_type;
+    serial->levels[serial->level].size = level_size;
+    serial->levels[serial->level].start = pre_level_size;
+    serial->levels[serial->level].ttstart = 0;
+    serial->levels[serial->level].ttindex = 0;
+    return serial->level;
+}
+
+static cosc_int32 cosc_serial_close_level(
+    struct cosc_serial *serial,
+    cosc_int32 level_type,
+    unsigned char *buffer
+)
+{
+    cosc_int32 pad = 0;
+    if (serial->level < 0)
+        return COSC_EINVAL;
+    if (!level_type)
+        level_type = serial->levels[serial->level].type;
+    else if (serial->levels[serial->level].type != level_type)
+        return COSC_ELEVELTYPE;
+    switch (level_type)
+    {
+    case COSC_LEVEL_TYPE_BUNDLE:
+        if (buffer)
+            cosc_write_int32(buffer + serial->levels[serial->level].start, 4, serial->levels[serial->level].size);
+        break;
+    case COSC_LEVEL_TYPE_MESSAGE:
+        if (buffer)
+        {
+            while (cosc_serial_get_level_msgtype(serial, buffer) != 0)
+            {
+                cosc_int32 ret = cosc_writer_skip((struct cosc_writer *)serial);
+                if (ret < 0)
+                    return ret;
+            }
+            cosc_write_int32(buffer + serial->levels[serial->level].start, 4, serial->levels[serial->level].size);
+        }
+        break;
+    case COSC_LEVEL_TYPE_BLOB:
+        if (buffer)
+            cosc_write_int32(buffer + serial->levels[serial->level].start, 4, serial->levels[serial->level].size);
+        pad = COSC_PAD(serial->levels[serial->level].size);
+        if (serial->levels[serial->level].start + serial->levels[serial->level].size > serial->buffer_size - pad)
+            return COSC_EOVERRUN;
+        if (buffer)
+            cosc_memset(buffer + serial->levels[serial->level].start + serial->levels[serial->level].size, 0, pad);
+        serial->levels[serial->level].size += pad;
+        serial->levels[serial->level - 1].ttindex++;
+        break;
+    default:
+        return COSC_EINVAL;
+    }
+    if (serial->level > 0)
+        serial->levels[serial->level - 1].size += serial->levels[serial->level].size;
+    else
+        serial->size += serial->levels[serial->level].size;
+    serial->level--;
+    return pad;
+}
+
+static cosc_int32 cosc_serial_close_levels(
+    struct cosc_serial *serial,
+    cosc_int32 levels,
+    unsigned char *buffer
+)
+{
+    cosc_int32 size = 0;
+    while (serial->level >= 0)
+    {
+        cosc_int32 ret = cosc_serial_close_level(serial, 0, buffer);
+        if (ret < 0)
+            return ret;
+        size += ret;
+        if (levels > 0 && --levels <= 0)
+            break;
+    }
+    return size;
+}
+
+static cosc_int32 cosc_serial_prepare(
+    const struct cosc_serial *serial,
+    cosc_int32 type,
+    const unsigned char *buffer
+)
+{
+    if (serial->level >= 0 && serial->levels[serial->level].type == COSC_LEVEL_TYPE_BLOB)
+        return cosc_serial_get_size(serial);
+    cosc_int32 cur_type = cosc_serial_get_level_msgtype(serial, buffer);
+    if (cur_type == 'S')
+        cur_type = 's';
+    if (type == 'S')
+        type = 's';
+    if (cur_type != type)
+        return COSC_EMSGTYPE;
+    return cosc_serial_get_size(serial);
+}
+
+static cosc_int32 cosc_serial_finish(
+    struct cosc_serial *serial,
+    cosc_int32 size,
+    const unsigned char *buffer
+)
+{
+    if (size < 0)
+        return size;
+    serial->levels[serial->level].ttindex = cosc_serial_next_valid_msgtype(serial, 0, buffer);
+    serial->levels[serial->level].size += size;
+    return size;
+}
+
+#endif /* !COSC_NOWRITER && !COSC_NOREADER */
+
+#ifndef COSC_NOWRITER
+
+void cosc_writer_setup(
+    struct cosc_writer *writer,
+    void *buffer,
+    cosc_int32 size,
+    struct cosc_level *levels,
+    cosc_int32 level_max,
+    cosc_uint32 flags
+)
+{
+    cosc_serial_setup(&writer->serial, size, levels, level_max, flags);
+    writer->buffer = buffer;
+}
+
+void cosc_writer_reset(
+    struct cosc_writer *writer
+)
+{
+    cosc_serial_reset(&writer->serial);
+}
+
+cosc_int32 cosc_writer_get_buffer_size(
+    const struct cosc_writer *writer
+)
+{
+    return cosc_serial_get_buffer_size(&writer->serial);
+}
+
+cosc_int32 cosc_writer_get_size(
+    const struct cosc_writer *writer
+)
+{
+    return cosc_serial_get_size(&writer->serial);
+}
+
+cosc_int32 cosc_writer_get_overrun(
+    const struct cosc_writer *writer
+)
+{
+    return writer->serial.overrun;
+}
+
+cosc_int32 cosc_writer_get_level_max(
+    const struct cosc_writer *writer
+)
+{
+    return cosc_serial_get_level_max(&writer->serial);
+}
+
+cosc_int32 cosc_writer_get_level(
+    const struct cosc_writer *writer
+)
+{
+    return cosc_serial_get_level(&writer->serial);
+}
+
+cosc_int32 cosc_writer_get_level_size(
+    const struct cosc_writer *writer
+)
+{
+    return cosc_serial_get_level_size(&writer->serial);
+}
+
+cosc_int32 cosc_writer_get_level_type(
+    const struct cosc_writer *writer
+)
+{
+    return cosc_serial_get_level_type(&writer->serial);
+}
+
+cosc_int32 cosc_writer_get_level_msgtype(
+    const struct cosc_writer *writer
+)
+{
+    return cosc_serial_get_level_msgtype(&writer->serial, writer->buffer);
+}
+
+void *cosc_writer_get_buffer(
+    const struct cosc_writer *writer
+)
+{
+    return writer->buffer;
+}
+
+cosc_int32 cosc_writer_set_buffer(
+    struct cosc_writer *writer,
+    void *buffer,
+    cosc_int32 size
+)
+{
+    if (size < writer->serial.size)
+        return COSC_EINVAL;
+    writer->buffer = buffer;
+    writer->serial.size = size;
+    return 0;
+}
+
+cosc_int32 cosc_writer_open_bundle(
+    struct cosc_writer *writer,
+    cosc_uint64 timetag
+)
+{
+    cosc_int32 size = cosc_serial_get_size(&writer->serial);
+    cosc_int32 prefix = cosc_serial_get_prefix(&writer->serial);
+    cosc_int32 ret = cosc_write_bundle(writer->buffer + size, writer->serial.buffer_size - size, timetag, prefix);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_bundle(0, 0, 0, prefix));
+    if (ret < 0)
+        return ret;
+    cosc_int32 level = cosc_serial_open_level(&writer->serial, COSC_LEVEL_TYPE_BUNDLE, ret, writer->buffer);
+    if (level < 0)
+        return level;
+    return ret;
+}
+
+cosc_int32 cosc_writer_open_message(
+    struct cosc_writer *writer,
+    const char *address,
+    cosc_int32 address_n,
+    const char *typetag,
+    cosc_int32 typetag_n
+)
+{
+    if (!cosc_typetag_validate(typetag, typetag_n, 0))
+        return COSC_ETYPE;
+    cosc_int32 size = cosc_serial_get_size(&writer->serial);
+    cosc_int32 prefix = cosc_serial_get_prefix(&writer->serial);
+    cosc_int32 ret = cosc_write_signature(
+        writer->buffer + size, writer->serial.buffer_size - size,
+        address, address_n, typetag, typetag_n, prefix
+    );
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_signature(0, 0, address, address_n, typetag, typetag_n, prefix));
+    if (ret < 0)
+        return ret;
+    cosc_int32 level = cosc_serial_open_level(&writer->serial, COSC_LEVEL_TYPE_MESSAGE, ret, writer->buffer);
+    if (level < 0)
+        return level;
+    writer->serial.levels[level].ttstart = cosc_write_string(0, 0, address, address_n, 0);
+    writer->serial.levels[level].ttend = ret;
+    if (prefix >= 0)
+        writer->serial.levels[level].ttstart += 4;
+    writer->serial.levels[level].ttindex = cosc_serial_next_valid_msgtype(&writer->serial, 1, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_open_blob(
+    struct cosc_writer *writer
+)
+{
+    cosc_int32 size = cosc_serial_get_size(&writer->serial);
+    cosc_int32 ret = cosc_write_blob(writer->buffer + size, writer->serial.buffer_size - size, 0, 0);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_blob(0, 0, 0, 0));
+    if (ret < 0)
+        return ret;
+    cosc_int32 level = cosc_serial_open_level(&writer->serial, COSC_LEVEL_TYPE_BLOB, ret, writer->buffer);
+    if (level < 0)
+        return level;
+    return ret;
+}
+
+cosc_int32 cosc_writer_close(
+    struct cosc_writer *writer,
+    cosc_int32 levels
+)
+{
+    return cosc_serial_close_levels(&writer->serial, levels, writer->buffer);
+}
+
+cosc_int32 cosc_writer_uint32(
+    struct cosc_writer *writer,
+    cosc_uint32 value
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 'r', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_uint32(writer->buffer + size, writer->serial.buffer_size - size, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_uint32(0, 0, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_int32(
+    struct cosc_writer *writer,
+    cosc_int32 value
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 'i', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_int32(writer->buffer + size, writer->serial.buffer_size - size, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_int32(0, 0, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_float32(
+    struct cosc_writer *writer,
+    cosc_float32 value
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 'f', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_float32(writer->buffer + size, writer->serial.buffer_size - size, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_float32(0, 0, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_uint64(
+    struct cosc_writer *writer,
+    cosc_uint64 value
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 't', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_uint64(writer->buffer + size, writer->serial.buffer_size - size, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_uint64(0, 0, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_int64(
+    struct cosc_writer *writer,
+    cosc_int64 value
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 'h', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_int64(writer->buffer + size, writer->serial.buffer_size - size, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_int64(0, 0, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_float64(
+    struct cosc_writer *writer,
+    cosc_float64 value
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 'd', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_float64(writer->buffer + size, writer->serial.buffer_size - size, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_float64(0, 0, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_string(
+    struct cosc_writer *writer,
+    const char *value,
+    cosc_int32 value_n,
+    cosc_int32 *length
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 's', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_string(writer->buffer + size, writer->serial.buffer_size - size, value, value_n, length);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_string(0, 0, value, value_n, length));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_blob(
+    struct cosc_writer *writer,
+    const void *value,
+    cosc_int32 value_size
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 'b', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_blob(writer->buffer + size, writer->serial.buffer_size - size, value, value_size);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_blob(0, 0, value, value_size));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_char(
+    struct cosc_writer *writer,
+    char value
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 'c', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_char(writer->buffer + size, writer->serial.buffer_size - size, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_char(0, 0, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_midi(
+    struct cosc_writer *writer,
+    unsigned char value[4]
+)
+{
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, 'm', writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_midi(writer->buffer + size, writer->serial.buffer_size - size, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_midi(0, 0, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_bytes(
+    struct cosc_writer *writer,
+    const void *value,
+    cosc_int32 value_n
+)
+{
+    if (writer->serial.level < 0 || writer->serial.levels[writer->serial.level].type != COSC_LEVEL_TYPE_BLOB)
+        return COSC_ELEVELTYPE;
+    cosc_int32 size = cosc_serial_get_size(&writer->serial);
+    if (value_n > COSC_SIZE_MAX - size)
+    {
+        writer->serial.overrun = value_n - (COSC_SIZE_MAX - size);
+        return COSC_ESIZEMAX;
+    }
+    if (value_n > writer->serial.buffer_size - size)
+    {
+        writer->serial.overrun = value_n - (writer->serial.buffer_size - size);
+        return COSC_ESIZEMAX;
+    }
+    if (value)
+        cosc_memcpy(writer->buffer + writer->serial.levels[writer->serial.level].start + writer->serial.levels[writer->serial.level].size, value, value_n);
+    else
+        cosc_memset(writer->buffer + writer->serial.levels[writer->serial.level].start + writer->serial.levels[writer->serial.level].size, 0, value_n);
+    writer->serial.levels[writer->serial.level].size += value_n;
+    return value_n;
+}
+
+cosc_int32 cosc_writer_value(
+    struct cosc_writer *writer,
+    cosc_int32 type,
+    const union cosc_value *value
+)
+{
+    static const union cosc_value zero = {0};
+    if (!value)
+        value = &zero;
+    cosc_int32 size = cosc_serial_prepare(&writer->serial, type, writer->buffer);
+    if (size < 0)
+        return size;
+    cosc_int32 ret = cosc_write_value(writer->buffer + size, writer->serial.buffer_size - size, type, value);
+    COSC_SERIAL_UPDATE_OVERRUN(&writer->serial, ret, cosc_write_value(0, 0, type, value));
+    return cosc_serial_finish(&writer->serial, ret, writer->buffer);
+    return ret;
+}
+
+cosc_int32 cosc_writer_skip(
+    struct cosc_writer *writer
+)
+{
+    cosc_int32 cur_type = cosc_serial_get_level_msgtype(&writer->serial, writer->buffer);
+    return cosc_writer_value(writer, cur_type, 0);
+}
+
+#endif /* !COSC_NOWRITER */

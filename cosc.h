@@ -18,6 +18,7 @@
  * - COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
  * - COSC_NOFLOAT64 to typedef `cosc_float64` as @ref cosc_uint64
  *   or @ref cosc_64bits if COSC_NOINT64 is also defined.
+ * - COSC_NOWRITER to remove the writer functions.
  *
  * Type overrides (also at compile AND include time):
  *
@@ -265,6 +266,29 @@ typedef COSC_TYPE_FLOAT64 cosc_float64;
 #define COSC_PAD(sz) (COSC_PADMUST(sz) & 3)
 
 /**
+ * The level type is a bundle.
+ */
+#define COSC_LEVEL_TYPE_BUNDLE 'B'
+
+/**
+ * The level type is a message.
+ */
+#define COSC_LEVEL_TYPE_MESSAGE 'M'
+
+/**
+ * The level type is a blob.
+ */
+#define COSC_LEVEL_TYPE_BLOB 'b'
+
+/**
+ * A flag indicating that all bundles and messages
+ * should have a 32-bit size integer prefix.
+ * @note If this flag is not used the first bundle or message
+ * in the buffer will have no size prefix.
+ */
+#define COSC_SERIAL_PREFIX 1
+
+/**
  * Buffer overrun.
  */
 #define COSC_EOVERRUN -2
@@ -285,14 +309,29 @@ typedef COSC_TYPE_FLOAT64 cosc_float64;
 #define COSC_EPSIZE -5
 
 /**
- * Used when the allocator fails.
- */
-#define COSC_ENOMEM -6
-
-/**
  * Invalid argument or operation.
  */
-#define COSC_EINVAL -7
+#define COSC_EINVAL -6
+
+/**
+ * Writer or reader reached maximum level.
+ */
+#define COSC_ELEVELMAX -7
+
+/**
+ * Invalid operation for the current level type.
+ */
+#define COSC_ELEVELTYPE -8
+
+/**
+ * Trying to chain multiple bundles or messages without size prefix flag.
+ */
+#define COSC_EPREFIXFLAG -9
+
+/**
+ * Trying to write or read a message member of the wrong or invalid type.
+ */
+#define COSC_EMSGTYPE -10
 
 /**
  * A value.
@@ -368,7 +407,7 @@ union cosc_value
     /**
      * 8-bit unsigned integer (ASCII character).
      */
-    char c;
+    cosc_int32 c;
 
     /**
      * 32-bit unsigned integer.
@@ -436,6 +475,113 @@ struct cosc_message
 
 };
 
+/**
+ * Used to manage the levels of a serializer.
+ */
+struct cosc_level
+{
+
+    /**
+     * The level type.
+     */
+    cosc_int32 type;
+
+    /**
+     * The buffer byte offset of the level start.
+     */
+    cosc_int32 start;
+
+    /**
+     * The level byte size.
+     */
+    cosc_int32 size;
+
+    /**
+     * The buffer byte offset of the typetag start counting
+     * from the level start.
+     * @note Only applicable if type is message.
+     */
+    cosc_int32 ttstart;
+
+    /**
+     * The buffer byte offset of the typetag ends, including it's
+     * zero terminator and padding (i.e where the data payload starts).
+     * @note Only applicable if type is message.
+     */
+    cosc_int32 ttend;
+
+    /**
+     * The current position in the typetag.
+     * @note Only applicable if type is message.
+     */
+    cosc_int32 ttindex;
+
+};
+
+/**
+ * Common members for both writers and readers.
+ */
+struct cosc_serial
+{
+
+    /**
+     * Maximum number of bytes the buffer has available.
+     */
+    cosc_int32 buffer_size;
+
+    /**
+     * The number of written or read bytes.
+     * @note Does not include started bundles, messages or blobs that have
+     * not yet been committed.
+     */
+    cosc_int32 size;
+
+    /**
+     * The number of bytes the last write or read operation
+     * exceeded the buffer size.
+     */
+    cosc_int32 overrun;
+
+    /**
+     * Flags to control operations.
+     */
+    cosc_uint32 flags;
+
+    /**
+     * A pointer to an array of levels.
+     */
+    struct cosc_level *levels;
+
+    /**
+     * Maximum level.
+     */
+    cosc_int32 level_max;
+
+    /**
+     * Current level.
+     */
+    cosc_int32 level;
+
+};
+
+/**
+ * Used to serialize OSC.
+ */
+struct cosc_writer
+{
+
+    /**
+     * Base serializer.
+     */
+    struct cosc_serial serial;
+
+    /**
+     * Buffer data.
+     */
+    unsigned char *buffer;
+
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -444,27 +590,51 @@ extern "C" {
 
 /**
  * Feature test for 64-bit integer support.
- * @returns Non-zero if valid cosc was built with 64-bit integer support.
+ * @returns Non-zero if cosc was built with 64-bit integer support.
  */
 COSC_API cosc_int32 cosc_feature_int64(void);
 
 /**
  * Feature test for 32-bit float support.
- * @returns Non-zero if valid cosc was built with 32-bit float support.
+ * @returns Non-zero if cosc was built with 32-bit float support.
  */
 COSC_API cosc_int32 cosc_feature_float32(void);
 
 /**
  * Feature test for 64-bit float support.
- * @returns Non-zero if valid cosc was built with 64-bit float support.
+ * @returns Non-zero if cosc was built with 64-bit float support.
  */
 COSC_API cosc_int32 cosc_feature_float64(void);
 
 /**
  * Feature test for endian swapping.
- * @returns Non-zero if valid cosc was built with endian swapping.
+ * @returns Non-zero if cosc was built with endian swapping.
  */
 COSC_API cosc_int32 cosc_feature_swap(void);
+
+/**
+ * Feature test for array support.
+ * @returns Non-zero if cosc was built with array support.
+ */
+COSC_API cosc_int32 cosc_feature_array(void);
+
+/**
+ * Feature test for pattern support.
+ * @returns Non-zero if cosc was built with pattern support.
+ */
+COSC_API cosc_int32 cosc_feature_pattern(void);
+
+/**
+ * Feature test for writer support.
+ * @returns Non-zero if cosc was built with writer support.
+ */
+COSC_API cosc_int32 cosc_feature_writer(void);
+
+/**
+ * Feature test for reader support.
+ * @returns Non-zero if cosc was built with reader support.
+ */
+COSC_API cosc_int32 cosc_feature_reader(void);
 
 /**
  * Check if an address character is valid.
@@ -485,8 +655,6 @@ COSC_API cosc_int32 cosc_address_char_validate(
  * @note If the address is valid the value stored to @p invalid
  * will be -1.
  * @note Invalid characters are "#*,?[]{}" and any ASCII <= 32.
- * @note This function will not be available if COSC_NOPATTERN
- * is defined.
  * @see cosc_typetag_validate() and cosc_pattern_validate().
  */
 COSC_API cosc_int32 cosc_address_validate(
@@ -499,8 +667,6 @@ COSC_API cosc_int32 cosc_address_validate(
  * Check if an typetag character is valid.
  * @param c The character.
  * @returns Non-zero if valid or zero if invalid.
- * @note This function will not be available if COSC_NOPATTERN
- * is defined.
  */
 COSC_API cosc_int32 cosc_typetag_char_validate(
     cosc_int32 c
@@ -520,8 +686,6 @@ COSC_API cosc_int32 cosc_typetag_char_validate(
  * due to an unclosed array '[' marker.
  * @note Typetags must always start with ',', even if they contain
  * no types.
- * @note This function will not be available if COSC_NOPATTERN
- * is defined.
  * @see cosc_address_validate() and cosc_pattern_validate().
  */
 COSC_API cosc_int32 cosc_typetag_validate(
@@ -548,8 +712,6 @@ COSC_API cosc_int32 cosc_typetag_validate(
  * indicating that some types may have been truncated to fit @p s.
  * @note If cosc was built with COSC_NOARRAY the value stored
  * to @p array_members will always be 0.
- * @note This function will not be available if COSC_NOPATTERN
- * is defined.
  */
 COSC_API cosc_int32 cosc_typetag_payload(
     char *s,
@@ -563,8 +725,8 @@ COSC_API cosc_int32 cosc_typetag_payload(
  * Check if an pattern character is valid.
  * @param c The character.
  * @returns Non-zero if valid or zero if invalid.
- * @note This function will not be available if COSC_NOPATTERN
- * is defined.
+ * @remark This function is not available if COSC_NOPATTERN
+ * was defined when compiling.
  */
 COSC_API cosc_int32 cosc_pattern_char_validate(
     cosc_int32 c
@@ -586,8 +748,8 @@ COSC_API cosc_int32 cosc_pattern_char_validate(
  * cosc_pattern_match().
  * @note When matching typetags the comma prefix and any array
  * syntax characters are removed from the matching.
- * @note This function will not be available if COSC_NOPATTERN
- * is defined.
+ * @remark This function is not available if COSC_NOPATTERN
+ * was defined when compiling.
  */
 COSC_API cosc_int32 cosc_pattern_validate(
     const char *s,
@@ -606,8 +768,8 @@ COSC_API cosc_int32 cosc_pattern_validate(
  * of OSC typetags the array brackets are ignored when matching.
  * @note For typetags the comma prefix and array brackets are ignored
  * and should be omitted from the @p pattern.
- * @note This function will not be available if COSC_NOPATTERN
- * is defined.
+ * @remark This function is not available if COSC_NOPATTERN
+ * was defined when compiling.
  *
  * Pattern syntax:
  *
@@ -642,8 +804,8 @@ COSC_API cosc_int32 cosc_pattern_match(
  * @param prefix Non-zero to expect a message with a 32-bit signed
  * size integer prefix.
  * @returns Non-zero when matching or zero for no match.
- * @note This function will not be available if COSC_NOPATTERN
- * is defined.
+ * @remark This function is not available if COSC_NOPATTERN
+ * was defined when compiling.
  */
 COSC_API cosc_int32 cosc_signature_match(
     const void *buffer,
@@ -1040,7 +1202,7 @@ COSC_API cosc_int32 cosc_read_blob(
 COSC_API cosc_int32 cosc_write_char(
     void *buffer,
     cosc_int32 size,
-    char value
+    cosc_int32 value
 );
 
 /**
@@ -1059,7 +1221,7 @@ COSC_API cosc_int32 cosc_write_char(
 COSC_API cosc_int32 cosc_read_char(
     const void *buffer,
     cosc_int32 size,
-    char *value
+    cosc_int32 *value
 );
 
 /**
@@ -1416,8 +1578,8 @@ COSC_API cosc_int32 cosc_read_message(
  * @returns The length of the string, excluding the zero terminator.
  * @note The returned length may be greater than or equal to @p n indicating
  * that the string was truncated.
- * @note This function will not be available if COSC_NOSTDLIB or COSC_NODUMP
- * are defined.
+ * @remark This function is not available if COSC_NOSTDLIB or COSC_NODUMP
+ * were defined when compiling.
  */
 COSC_API cosc_int32 cosc_value_dump(
     char *s,
@@ -1434,8 +1596,8 @@ COSC_API cosc_int32 cosc_value_dump(
  * @returns The length of the string, excluding the zero terminator.
  * @note The returned length may be greater than or equal to @p n indicating
  * that the string was truncated.
- * @note This function will not be available if COSC_NOSTDLIB or COSC_NODUMP
- * are defined.
+ * @remark This function is not available if COSC_NOSTDLIB or COSC_NODUMP
+ * were defined when compiling.
  */
 COSC_API cosc_int32 cosc_message_dump(
     char *s,
@@ -1445,6 +1607,420 @@ COSC_API cosc_int32 cosc_message_dump(
 
 #endif /* !COSC_NOSTDLIB && !COSC_NODUMP */
 
+#if !defined(COSC_NOWRITER) && !defined(COSC_NOREADER)
+
+// FIXME: maybe not have functions directly for serial.
+
+#endif /* !COSC_NOWRITER && !COSC_NOREADER */
+
+#ifndef COSC_NOWRITER
+
+/**
+ * Helper to setup a writer.
+ * @param[out] writer The writer struct to initialize.
+ * @param buffer The buffer bytes will be written to, must not
+ * be NULL.
+ * @param size Store at most this many bytes to @p buffer.
+ * @param levels A pointer to an array with at least one member.
+ * @param level_max The maximum number of levels, will be implicitly
+ * clamped to a minimum value of 1.
+ * @param flags Flags to control the behavior of the writer,
+ * see the COSC_SERIAL_* macros.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
+ */
+COSC_API void cosc_writer_setup(
+    struct cosc_writer *writer,
+    void *buffer,
+    cosc_int32 size,
+    struct cosc_level *levels,
+    cosc_int32 level_max,
+    cosc_uint32 flags
+);
+
+/**
+ * Reset the writer levels and sizes, making it available for
+ * completely new OSC data.
+ * @param writer The writer.
+ * @remark This function is not available if both COSC_NOWRITER was
+ * defined when compiling.
+ */
+COSC_API void cosc_writer_reset(
+    struct cosc_writer *writer
+);
+
+/**
+ * Get the size of the buffer used by the writer.
+ * @param writer The writer.
+ * @returns The buffer size in bytes.
+ * @remark This function is not available if both COSC_NOWRITER was
+ * defined when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_get_buffer_size(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Get the number of written or read bytes.
+ * @param writer The writer.
+ * @returns The written/read byte size.
+ * @remark This function is not available if both COSC_NOWRITER was
+ * defined when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_get_size(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Get the number of bytes the last write operation would overrun the
+ * buffer with (if the operation returned @ref COSC_EOVERRUN
+ * or @ref COSC_ESIZEMAX).
+ * @param writer The writer.
+ * @returns The number of overrun bytes or 0 if none.
+ * @remark This function is not available if both COSC_NOWRITER was
+ * defined when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_get_overrun(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Get the maximum number of levels the writer has.
+ * @param writer The writer.
+ * @returns The maximum number of levels the writer has.
+ * @remark This function is not available if both COSC_NOWRITER was
+ * defined when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_get_level_max(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Get the number of open levels of the writer.
+ * @param writer The writer.
+ * @returns The current level of the writer, will be 0
+ * if no level has been started.
+ * @remark This function is not available if both COSC_NOWRITER was
+ * defined when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_get_level(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Get the byte size of the current level of the writer.
+ * @param writer The writer.
+ * @returns The byte size of the current level of the writer, will be 0
+ * if no level has been started.
+ * @remark This function is not available if both COSC_NOWRITER was
+ * defined when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_get_level_size(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Get the type of the current level of the writer.
+ * @param writer The writer.
+ * @returns The type of the current level of the writer, will be 0
+ * if no level has been started.
+ * @see @ref COSC_LEVEL_TYPE_BUNDLE, @ref COSC_LEVEL_TYPE_MSSAGE
+ * and @ref COSC_LEVEL_TYPE_BLOB.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_get_level_type(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Get the message typetag type of the current level of the writer.
+ * @param writer The writer.
+ * @returns The type of the current level of the writer, will be 0
+ * if no level has been started or if the current level is not a message.
+ * @note If this function returns 0 it means the message typetag
+ * has ended and there are no more types left.
+ * @remark This function is not available if both COSC_NOWRITER was
+ * defined when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_get_level_msgtype(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Get the buffer used by the writer.
+ * @param writer The writer.
+ * @returns A pointer to the start of the buffer.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
+ */
+COSC_API void *cosc_writer_get_buffer(
+    const struct cosc_writer *writer
+);
+
+/**
+ * Set the buffer used by the writer.
+ * @param writer The writer.
+ * @param buffer The new buffer.
+ * @param size The size of the new buffer.
+ * @returns 0 on success or @ref COSC_EINVAL if the new
+ * buffer size is maller than the current one.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_set_buffer(
+    struct cosc_writer *writer,
+    void *buffer,
+    cosc_int32 size
+);
+
+/**
+ * Open a new bundle and add a level.
+ * @param writer The writer.
+ * @param timetag The timetag.
+ * @returns The number of bytes added to the new level on success
+ * or a negative error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_open_bundle(
+    struct cosc_writer *writer,
+    cosc_uint64 timetag
+);
+
+/**
+ * Open a new message and add a level.
+ * @param writer The writer.
+ * @param address The address.
+ * @param address_n Read at most this many bytes from @p address.
+ * @param typetag The typetag.
+ * @param typetag_n Read at most this many bytes from @p typetag.
+ * @returns The number of bytes added to the new level on success
+ * or a negative error code on failure.
+ */
+COSC_API cosc_int32 cosc_writer_open_message(
+    struct cosc_writer *writer,
+    const char *address,
+    cosc_int32 address_n,
+    const char *typetag,
+    cosc_int32 typetag_n
+);
+
+/**
+ * Open a new blob and add a level.
+ * @param writer The writer.
+ * @returns The number of bytes added to the new level on success
+ * or a negative error code on failure.
+ */
+COSC_API cosc_int32 cosc_writer_open_blob(
+    struct cosc_writer *writer
+);
+
+/**
+ * Close one or more levels of open bundles, messages and blobs.
+ * @param writer The writer.
+ * @param levels The number of levels to close, zero or a negative
+ * value for all.
+ * @returns The number of bytes added to the buffer on success
+ * or a negative error code on failure.
+ * @note If any open levels are messages any remaining message members
+ * will be written as empty/zeroed before the message closes.
+ * @note If any open levels are blobs it will get padded before closed.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_close(
+    struct cosc_writer *writer,
+    cosc_int32 levels
+);
+
+/**
+ * Write an unsigned 32-bit integer to a message and on success
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_uint32(
+    struct cosc_writer *writer,
+    cosc_uint32 value
+);
+
+/**
+ * Write a signed 32-bit integer to a message and on success
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_int32(
+    struct cosc_writer *writer,
+    cosc_int32 value
+);
+
+/**
+ * Write a 32-bit float to a message and on success
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_float32(
+    struct cosc_writer *writer,
+    cosc_float32 value
+);
+
+/**
+ * Write an unsigned 64-bit integer to a message and on success
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_uint64(
+    struct cosc_writer *writer,
+    cosc_uint64 value
+);
+
+/**
+ * Write a signed 64-bit integer to a message and on success
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_int64(
+    struct cosc_writer *writer,
+    cosc_int64 value
+);
+
+/**
+ * Write a 64-bit float to a message and on success
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_float64(
+    struct cosc_writer *writer,
+    cosc_float64 value
+);
+
+/**
+ * Write a string to a message and on success proceed
+ * to the next member of the message typetag.
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value.
+ * @param value_n Read at most this many bytes from @p value.
+ * @param[out] length If non-NULL and the function does not return
+ * a negative error code the length of the string, excluding the
+ * zero terminator, is stored here.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_string(
+    struct cosc_writer *writer,
+    const char *value,
+    cosc_int32 value_n,
+    cosc_int32 *length
+);
+
+/**
+ * Write a blob to a message and on success proceed
+ * to the next member of the message typetag.
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value or NULL to zero the blob data.
+ * @param value_size The size of the blob.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_blob(
+    struct cosc_writer *writer,
+    const void *value,
+    cosc_int32 value_size
+);
+
+/**
+ * Write an ASCII character to a message and on success proceed
+ * to the next member of the message typetag.
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_char(
+    struct cosc_writer *writer,
+    char value
+);
+
+/**
+ * Write a MIDI message to a message and on success proceed
+ * to the next member of the message typetag.
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The value or NULL to zero the MIDI message.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_midi(
+    struct cosc_writer *writer,
+    unsigned char value[4]
+);
+
+/**
+ * Write bytes to a message blob member and on success proceed
+ * to the next member of the message typetag.
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param value The bytes or NULL to zero the bytes.
+ * @param value_n The number of bytes to write.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_bytes(
+    struct cosc_writer *writer,
+    const void *value,
+    cosc_int32 value_n
+);
+
+/**
+ * Write a value to a message and on success proceed
+ * to the next member of the message typetag.
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @param type The value type.
+ * @param value The value or NULL to zero the value.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_value(
+    struct cosc_writer *writer,
+    cosc_int32 type,
+    const union cosc_value *value
+);
+
+/**
+ * Write an empty value to a message and on success proceed
+ * to the next member of the message typetag.
+ * proceed to the next member of the message typetag.
+ * @param writer The writer.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ */
+cosc_int32 cosc_writer_skip(
+    struct cosc_writer *writer
+);
+
+#endif /* !COSC_NOWRITER */
 
 #ifdef __cplusplus
 }
