@@ -95,6 +95,14 @@ option(COSC_NOARRAY "No array support." OFF)
 if(COSC_NOARRAY)
     list(APPEND targets_compile_definitions -DCOSC_NOARRAY)
 endif()
+option(COSC_NOWRITER "No writer support." OFF)
+if(COSC_NOWRITER)
+    list(APPEND targets_compile_definitions -DCOSC_NOWRITER)
+endif()
+option(COSC_NOREADER "No reader support." OFF)
+if(COSC_NOREADER)
+    list(APPEND targets_compile_definitions -DCOSC_NOREADER)
+endif()
 option(COSC_NODUMP "Remove dump functions." OFF)
 if(COSC_NODUMP)
     list(APPEND targets_compile_definitions -DCOSC_NODUMP)
@@ -238,6 +246,12 @@ if(NOT EMSCRIPTEN)
         basics
         signature
         )
+    if (NOT COSC_NOWRITER)
+        list(APPEND unit_test_names writer)
+    endif()
+    if (NOT COSC_NOREADER)
+        list(APPEND unit_test_names reader)
+    endif()
     
     ExternalProject_Add(
         cmocka
