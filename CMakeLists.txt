@@ -249,6 +249,9 @@ if(NOT EMSCRIPTEN)
     if (NOT COSC_NOWRITER)
         list(APPEND unit_test_names writer)
     endif()
+    if (NOT COSC_NOREADER)
+        list(APPEND unit_test_names reader)
+    endif()
     
     ExternalProject_Add(
         cmocka

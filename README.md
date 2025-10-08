@@ -89,6 +89,8 @@ Defined at compile and include time:
 - `COSC_NOSWAP` for no endian swapping.
 - `COSC_NOARRAY` to remove the support for arrays.
 - `COSC_NODUMP` to remove the dump functions.
+- `COSC_NOWRITER` to remove the writer functions.
+- `COSC_NOREADER` to remove the reader functions.
 - `COSC_NOSTDINT` for no inclusion of `stdint.h` (or <cstdint> if C++).
 - `COSC_NOINT64` to typedef `cosc_int64` and `cosc_uint64` types as `cosc_64bits`.
 - `COSC_NOFLOAT32` to typedef `cosc_float32` as `cosc_uint32`.

@@ -157,7 +157,7 @@ static void test_float32_overrun(void **state)
 static void test_char(void **state)
 {
     cosc_int32 ret;
-    char value = 0;
+    cosc_int32 value = 0;
     ret = cosc_write_char(buffer, sizeof(buffer), 'A');
     assert_int_equal(ret, 4);
     ret = cosc_read_char(buffer, sizeof(buffer), &value);
@@ -177,7 +177,7 @@ static void test_char_null(void **state)
 static void test_char_overrun(void **state)
 {
     cosc_int32 ret;
-    char value = 0;
+    cosc_int32 value = 0;
     ret = cosc_write_char(buffer, 3, 'A');
     assert_int_equal(ret, COSC_EOVERRUN);
     ret = cosc_read_char(buffer, 3, &value);
