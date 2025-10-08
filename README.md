@@ -24,6 +24,7 @@ perhaps <https://liblo.sourceforge.net/> is a better choice.
 - Address and typetag validation.
 - Address and typetag pattern matching.
 - Timetag conversions.
+- Higher level writer/reader APIs with nesting.
 - Handle 64-bit values on systems without 64-bit types.
 - Handle floating point values on systems without floating point types.
 - No dynamic allocations.
@@ -31,8 +32,7 @@ perhaps <https://liblo.sourceforge.net/> is a better choice.
 - Use of `stdint.h` is optional.
 - Ability to typedef custom type for integer and floats.
 - C99 and C++11 compliant.
-- No optimizations relying on undefined behavior or assumptions
-  about alignment restrictions.
+- No optimizations relying on undefined behavior.
 - MIT license.
 
 *Limitations:*

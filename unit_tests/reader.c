@@ -116,7 +116,7 @@ static void test_empty_bundle_noprefix(void **state)
 #endif
     assert_int_equal(cosc_reader_close(&reader, 1), 0);
     assert_int_equal(cosc_reader_get_size(&reader), 16);
-    assert_int_equal(cosc_reader_open_bundle(&reader, NULL, NULL), COSC_EPREFIXFLAG);
+    assert_int_equal(cosc_reader_open_bundle(&reader, NULL, NULL), COSC_EPSIZEFLAG);
 }
 
 static void test_empty_bundle_prefix(void **state)
@@ -151,7 +151,7 @@ static void test_empty_message_noprefix(void **state)
     assert_int_equal(typetag_n, 1);
     assert_int_equal(cosc_reader_close(&reader, 1), 0);
     assert_int_equal(cosc_reader_get_size(&reader), 8);
-    assert_int_equal(cosc_reader_open_message(&reader, &address, &address_n, &typetag, &typetag_n, 0), COSC_EPREFIXFLAG);
+    assert_int_equal(cosc_reader_open_message(&reader, &address, &address_n, &typetag, &typetag_n, 0), COSC_EPSIZEFLAG);
 }
 
 static void test_empty_message_prefix(void **state)
@@ -208,7 +208,7 @@ static void test_bundle_empty_messages_noprefix(void **state)
     assert_int_equal(cosc_reader_get_size(&reader), 16 + 48);
     assert_int_equal(cosc_reader_close(&reader, 1), 0);
     assert_int_equal(cosc_reader_get_size(&reader), 16 + 48);
-    assert_int_equal(cosc_reader_open_bundle(&reader, 0, 0), COSC_EPREFIXFLAG);
+    assert_int_equal(cosc_reader_open_bundle(&reader, 0, 0), COSC_EPSIZEFLAG);
 }
 
 static void test_message_noarray(void **state)

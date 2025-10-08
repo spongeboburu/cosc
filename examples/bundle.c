@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
         values[1].f = i / 10.0;
         cosc_int32 ret = cosc_write_message(
             buffer + size, (cosc_int32)sizeof(buffer) - size, &message,
-            true, NULL, NULL
+            true, NULL
         );
         if (ret < 0)
         {
@@ -99,9 +99,10 @@ int main(int argc, char *argv[])
     {
 
         // Read message.
+        cosc_int32 packet_size;
         cosc_int32 ret = cosc_read_message(
             buffer + size, sizeof(buffer) - size, &message,
-            true, 0, 0
+            &packet_size, 0
         );
         if (ret < 0)
         {
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
             return 4;
         }
 
-        printf("Message was %d bytes in size.\n", ret);
+        printf("Message was %d bytes in size, packetsize is %d.\n", ret, packet_size);
 
         // Dump the message to a string.
         char tmps[1024];

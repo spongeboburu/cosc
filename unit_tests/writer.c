@@ -68,7 +68,7 @@ static void test_empty_bundle_noprefix(void **state)
     assert_int_equal(cosc_writer_open_bundle(&writer, timetag), 16);
     assert_int_equal(cosc_writer_close(&writer, 1), 0);
     assert_int_equal(cosc_writer_get_size(&writer), 16);
-    assert_int_equal(cosc_writer_open_bundle(&writer, timetag), COSC_EPREFIXFLAG);
+    assert_int_equal(cosc_writer_open_bundle(&writer, timetag), COSC_EPSIZEFLAG);
 }
 
 static void test_empty_bundle_prefix(void **state)
@@ -93,7 +93,7 @@ static void test_empty_message_noprefix(void **state)
     assert_int_equal(cosc_writer_open_message(&writer, "abc", 4, ",", 4), 8);
     assert_int_equal(cosc_writer_close(&writer, 1), 0);
     assert_int_equal(cosc_writer_get_size(&writer), 8);
-    assert_int_equal(cosc_writer_open_message(&writer, "abc", 4, ",", 4), COSC_EPREFIXFLAG);
+    assert_int_equal(cosc_writer_open_message(&writer, "abc", 4, ",", 4), COSC_EPSIZEFLAG);
 }
 
 static void test_empty_message_prefix(void **state)
@@ -131,7 +131,7 @@ static void test_bundle_empty_messages_noprefix(void **state)
     assert_int_equal(cosc_writer_get_size(&writer), 16 + 48);
     assert_int_equal(cosc_writer_close(&writer, 1), 0);
     assert_int_equal(cosc_writer_get_size(&writer), 16 + 48);
-    assert_int_equal(cosc_writer_open_bundle(&writer, timetag), COSC_EPREFIXFLAG);
+    assert_int_equal(cosc_writer_open_bundle(&writer, timetag), COSC_EPSIZEFLAG);
 }
 
 static void test_bundle_empty_messages_prefix(void **state)

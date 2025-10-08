@@ -55,11 +55,10 @@ static void test_message_nopsize(void **state)
 {
     cosc_int32 ret;
     cosc_int32 value_count = 0;
-    cosc_int32 value_offsets[11] = {0};
     ret = cosc_write_message(
         buffer, sizeof(buffer),
         &WRITE_MESSAGE, 0,
-        &value_count, value_offsets
+        &value_count
     );
     assert_int_equal(ret, 120);
 }

@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
     cosc_int32 value_count = 0;
     cosc_int32 ret = cosc_write_message(
         buffer, sizeof(buffer), &message,
-        true, &value_count, NULL
+        true, &value_count
     );
     if (ret < 0)
     {
@@ -74,16 +74,17 @@ int main(int argc, char *argv[])
     printf("%d bytes written for %d values.\n", ret, value_count);
 
     // Read it.
+    cosc_int32 packet_size;
     ret = cosc_read_message(
         buffer, sizeof(buffer), &message,
-        true, &value_count, 0
+        &packet_size, &value_count
     );
     if (ret < 0)
     {
         printf("Uh oh, error %d!\n", ret);
         return 2;
     }
-    printf("%d bytes read for %d values.\n", ret, value_count);
+    printf("%d bytes read for %d values, packet size is %d.\n", ret, value_count, packet_size);
 
     // Dump the message to a string.
     char tmps[1024];

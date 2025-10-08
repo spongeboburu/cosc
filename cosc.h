@@ -330,9 +330,9 @@ typedef COSC_TYPE_FLOAT64 cosc_float64;
 #define COSC_ELEVELTYPE -8
 
 /**
- * Trying to chain multiple bundles or messages without size prefix flag.
+ * Trying to chain multiple bundles or messages without packet size flag.
  */
-#define COSC_EPREFIXFLAG -9
+#define COSC_EPSIZEFLAG -9
 
 /**
  * Trying to write or read a message member of the wrong or invalid type.
@@ -1297,7 +1297,7 @@ COSC_API cosc_int32 cosc_read_midi(
  * @param timetag The timetag of the bundle.
  * @param psize If >= 0 write a signed 32-bit integer at the start describing
  * the byte size of the message or a negative value if there is no
- * size descriptor prefix.
+ * packet size descriptor prefix.
  * @returns The number of written bytes if @p buffer is non-NULL,
  * the required size if @p buffer is NULL or a negative error code
  * if the operation fails.
@@ -1324,7 +1324,7 @@ COSC_API cosc_int32 cosc_write_bundle(
  * a negative error code the timetag is stored here.
  * @param[out] psize If non-NULL and a signed 32-bit integer at the
  * start describing the byte size of the message is stored here,
- * NULL if there is no size descriptor prefix.
+ * NULL if there is no packet size descriptor prefix.
  * @returns The number of read bytes or a negative error code if the
  * operation fails.
  * @note If @p size is non-NULL and the @p size < 4 the value
@@ -1469,10 +1469,6 @@ COSC_API cosc_int32 cosc_read_value(
  * @param values_n Read at most this many members from @p values.
  * @param[out] value_count If non-NULL the number of written values is
  * stored here.
- * @param[out] value_offsets If non-NULL an array of integers with at least
- * as many members as the accepted number of values (@p values_n) is
- * expected and will be filled with the value offsets. Note that no more
- * than the value stored in @p value_count offsets are stored.
  * @returns The number of written bytes if @p buffer is non-NULL,
  * the required size if @p buffer is NULL or a negative error code
  * if the operation fails.
@@ -1490,8 +1486,7 @@ COSC_API cosc_int32 cosc_write_values(
     cosc_int32 typetag_n,
     const union cosc_value *values,
     cosc_int32 values_n,
-    cosc_int32 *value_count,
-    cosc_int32 *value_offsets
+    cosc_int32 *value_count
 );
 
 /**
@@ -1504,10 +1499,6 @@ COSC_API cosc_int32 cosc_write_values(
  * @param values_n Store at most this many members to @p values.
  * @param[out] value_count If non-NULL the number of read values is
  * stored here.
- * @param[out] value_offsets If non-NULL an array of integers with at least
- * as many members as the accepted number of values (@p values_n) is
- * expected and will be filled with the value offsets. Note that no more
- * than the value stored in @p value_count offsets are stored.
  * @returns The number of read bytes or a negative error code if the
  * operation fails.
  * @note If @p values_n is less than the values specified by @p typetag
@@ -1524,8 +1515,7 @@ COSC_API cosc_int32 cosc_read_values(
     cosc_int32 typetag_n,
     union cosc_value *values,
     cosc_int32 values_n,
-    cosc_int32 *value_count,
-    cosc_int32 *value_offsets
+    cosc_int32 *value_count
 );
 
 /**
@@ -1534,14 +1524,10 @@ COSC_API cosc_int32 cosc_read_values(
  * then no bytes are stored.
  * @param size Store at most this many bytes to @p buffer.
  * @param message The message or NULL for an empty message.
- * @param prefix Non-zero to prefix the message with a 32-bit signed
- * size integer.
+ * @param use_psize Non-zero to add a 32-bit packet size integer before
+ * the actual message.
  * @param[out] value_count If non-NULL the number of written values is
  * stored here.
- * @param[out] value_offsets If non-NULL an array of integers with at least
- * as many members as the accepted number of values (@p values_n) is
- * expected and will be filled with the value offsets. Note that no more
- * than the value stored in @p value_count offsets are stored.
  * @returns The number of written bytes if @p buffer is non-NULL,
  * the required size if @p buffer is NULL or a negative error code
  * if the operation fails.
@@ -1555,9 +1541,8 @@ COSC_API cosc_int32 cosc_write_message(
     void *buffer,
     cosc_int32 size,
     const struct cosc_message *message,
-    cosc_int32 prefix,
-    cosc_int32 *value_count,
-    cosc_int32 *value_offsets
+    cosc_int32 use_psize,
+    cosc_int32 *value_count
 );
 
 /**
@@ -1565,14 +1550,12 @@ COSC_API cosc_int32 cosc_write_message(
  * @param buffer Read bytes from this buffer.
  * @param size Read at most this many bytes from @p buffer.
  * @param message The message or NULL to discard the message.
- * @param prefix Non-zero to expect a message with a 32-bit signed
- * size integer prefix.
+ * @param psize If non-NULL read a 32 bit packet size integer
+ * before the message and store it here, may be 0 if the function
+ * fails before reading it. NULL if you are not expecting any packet
+ * size integer at the start of the buffer.
  * @param[out] value_count If non-NULL the number of read values is
  * stored here.
- * @param[out] value_offsets If non-NULL an array of integers with at least
- * as many members as the accepted number of values (message->values_n) is
- * expected and will be filled with the value offsets. Note that no more
- * than the value stored in @p value_count offsets are stored.
  * @returns The number of read bytes or a negative error code if the
  * operation fails.
  * @note The message address is NOT validated.
@@ -1586,9 +1569,8 @@ COSC_API cosc_int32 cosc_read_message(
     const void *buffer,
     cosc_int32 size,
     struct cosc_message *message,
-    cosc_int32 prefix,
-    cosc_int32 *value_count,
-    cosc_int32 *value_offsets
+    cosc_int32 *psize,
+    cosc_int32 *value_count
 );
 
 #if !defined(COSC_NOSTDLIB) && !defined(COSC_NODUMP)
@@ -1810,6 +1792,9 @@ COSC_API cosc_int32 cosc_writer_open_bundle(
  * @param typetag_n Read at most this many bytes from @p typetag.
  * @returns The number of bytes added to the new level on success
  * or a negative error code on failure.
+ * @note The message address is NOT validated.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 COSC_API cosc_int32 cosc_writer_open_message(
     struct cosc_writer *writer,
@@ -1824,6 +1809,8 @@ COSC_API cosc_int32 cosc_writer_open_message(
  * @param writer The writer.
  * @returns The number of bytes added to the new level on success
  * or a negative error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 COSC_API cosc_int32 cosc_writer_open_blob(
     struct cosc_writer *writer
@@ -1853,6 +1840,8 @@ COSC_API cosc_int32 cosc_writer_close(
  * @param value The value.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_uint32(
     struct cosc_writer *writer,
@@ -1866,6 +1855,8 @@ cosc_int32 cosc_writer_uint32(
  * @param value The value.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_int32(
     struct cosc_writer *writer,
@@ -1879,6 +1870,8 @@ cosc_int32 cosc_writer_int32(
  * @param value The value.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_float32(
     struct cosc_writer *writer,
@@ -1892,6 +1885,8 @@ cosc_int32 cosc_writer_float32(
  * @param value The value.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_uint64(
     struct cosc_writer *writer,
@@ -1905,6 +1900,8 @@ cosc_int32 cosc_writer_uint64(
  * @param value The value.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_int64(
     struct cosc_writer *writer,
@@ -1918,6 +1915,8 @@ cosc_int32 cosc_writer_int64(
  * @param value The value.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_float64(
     struct cosc_writer *writer,
@@ -1936,6 +1935,8 @@ cosc_int32 cosc_writer_float64(
  * zero terminator, is stored here.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_string(
     struct cosc_writer *writer,
@@ -1953,6 +1954,8 @@ cosc_int32 cosc_writer_string(
  * @param value_size The size of the blob.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_blob(
     struct cosc_writer *writer,
@@ -1968,6 +1971,8 @@ cosc_int32 cosc_writer_blob(
  * @param value The value.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_char(
     struct cosc_writer *writer,
@@ -1982,6 +1987,8 @@ cosc_int32 cosc_writer_char(
  * @param value The value or NULL to zero the MIDI message.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_midi(
     struct cosc_writer *writer,
@@ -1997,6 +2004,8 @@ cosc_int32 cosc_writer_midi(
  * @param value_n The number of bytes to write.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_bytes(
     struct cosc_writer *writer,
@@ -2013,11 +2022,31 @@ cosc_int32 cosc_writer_bytes(
  * @param value The value or NULL to zero the value.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_value(
     struct cosc_writer *writer,
     cosc_int32 type,
     const union cosc_value *value
+);
+
+/**
+ * Write an OSC message to the writer.
+ * @param writer The writer.
+ * @param message The message or NULL for an empty message.
+ * @param[out] value_count If non-NULL the number of written values is
+ * stored here.
+ * @return The number of written bytes on success or a negative
+ * error code on failure.
+ * @note The message address is NOT validated.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
+ */
+COSC_API cosc_int32 cosc_writer_message(
+    struct cosc_writer *writer,
+    const struct cosc_message *message,
+    cosc_int32 *value_count
 );
 
 /**
@@ -2027,6 +2056,8 @@ cosc_int32 cosc_writer_value(
  * @param writer The writer.
  * @return The number of written bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOWRITER was defined
+ * when compiling.
  */
 cosc_int32 cosc_writer_skip(
     struct cosc_writer *writer
@@ -2234,6 +2265,8 @@ COSC_API cosc_int32 cosc_reader_open_bundle(
  * the value stored is 0.
  * @returns The number of bytes increased to the new level on success
  * or a negative error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 COSC_API cosc_int32 cosc_reader_open_message(
     struct cosc_reader *reader,
@@ -2251,6 +2284,8 @@ COSC_API cosc_int32 cosc_reader_open_message(
  * a negative error code the blob size is stored here.
  * @returns The number of bytes increased to the new level on success
  * or a negative error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 COSC_API cosc_int32 cosc_reader_open_blob(
     struct cosc_reader *reader,
@@ -2269,6 +2304,8 @@ COSC_API cosc_int32 cosc_reader_open_blob(
  * @note If any open levels are blobs it will get padded before closed.
  * @remark This function is not available if COSC_NOREADER was defined
  * when compiling.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 COSC_API cosc_int32 cosc_reader_close(
     struct cosc_reader *reader,
@@ -2283,6 +2320,8 @@ COSC_API cosc_int32 cosc_reader_close(
  * the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_uint32(
     struct cosc_reader *reader,
@@ -2297,6 +2336,8 @@ cosc_int32 cosc_reader_uint32(
  * the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_int32(
     struct cosc_reader *reader,
@@ -2311,6 +2352,8 @@ cosc_int32 cosc_reader_int32(
  * the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_float32(
     struct cosc_reader *reader,
@@ -2325,6 +2368,8 @@ cosc_int32 cosc_reader_float32(
  * the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_uint64(
     struct cosc_reader *reader,
@@ -2339,6 +2384,8 @@ cosc_int32 cosc_reader_uint64(
  * the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_int64(
     struct cosc_reader *reader,
@@ -2353,6 +2400,8 @@ cosc_int32 cosc_reader_int64(
  * the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_float64(
     struct cosc_reader *reader,
@@ -2373,6 +2422,8 @@ cosc_int32 cosc_reader_float64(
  * zero terminator, is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_string(
     struct cosc_reader *reader,
@@ -2395,6 +2446,8 @@ cosc_int32 cosc_reader_string(
  * the byte size of the data is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_blob(
     struct cosc_reader *reader,
@@ -2413,6 +2466,8 @@ cosc_int32 cosc_reader_blob(
  * the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_char(
     struct cosc_reader *reader,
@@ -2428,6 +2483,8 @@ cosc_int32 cosc_reader_char(
  * the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_midi(
     struct cosc_reader *reader,
@@ -2443,6 +2500,8 @@ cosc_int32 cosc_reader_midi(
  * @param value_n The number of bytes to read.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_bytes(
     struct cosc_reader *reader,
@@ -2461,11 +2520,31 @@ cosc_int32 cosc_reader_bytes(
  * negative error code the value is stored here.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_value(
     struct cosc_reader *reader,
     cosc_int32 *type,
     union cosc_value *value
+);
+
+/**
+ * Read an OSC message from the reader.
+ * @param reader The reader.
+ * @param message The message or NULL to discard the message.
+ * @param[out] value_count If non-NULL the number of read values is
+ * stored here.
+ * @returns The number of read bytes or a negative error code if the
+ * operation fails.
+ * @note The message address is NOT validated.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
+ */
+COSC_API cosc_int32 cosc_reader_message(
+    struct cosc_reader *reader,
+    struct cosc_message *message,
+    cosc_int32 *value_count
 );
 
 /**
@@ -2475,6 +2554,8 @@ cosc_int32 cosc_reader_value(
  * @param reader The reader.
  * @return The number of read bytes on success or a negative
  * error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
  */
 cosc_int32 cosc_reader_skip(
     struct cosc_reader *reader

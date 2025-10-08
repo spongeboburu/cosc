@@ -51,48 +51,24 @@ static void test_without_array(void **state)
 {
     cosc_int32 ret;
     cosc_int32 value_count = 0;
-    cosc_int32 value_offsets[sizeof(WRITE_VALUES) / sizeof(*WRITE_VALUES)];
     union cosc_value read_values[11] = {0};
     ret = cosc_write_values(
         buffer, sizeof(buffer),
         WRITE_TYPETAG, WRITE_TYPETAG_LEN,
         WRITE_VALUES, sizeof(WRITE_VALUES) / sizeof(*WRITE_VALUES),
-        &value_count, value_offsets
+        &value_count
     );
     assert_int_equal(ret, 92);
     assert_int_equal(value_count, 11);
-    assert_int_equal(value_offsets[0], 0);
-    assert_int_equal(value_offsets[1], 4);
-    assert_int_equal(value_offsets[2], 8);
-    assert_int_equal(value_offsets[3], 12);
-    assert_int_equal(value_offsets[4], 16);
-    assert_int_equal(value_offsets[5], 20);
-    assert_int_equal(value_offsets[6], 28);
-    assert_int_equal(value_offsets[7], 36);
-    assert_int_equal(value_offsets[8], 44);
-    assert_int_equal(value_offsets[9], 60);
-    assert_int_equal(value_offsets[10], 76);
     value_count = 0;
-    memset(value_offsets, 0, sizeof(value_offsets));
     ret = cosc_read_values(
         buffer, sizeof(buffer),
         WRITE_TYPETAG, WRITE_TYPETAG_LEN,
         read_values, sizeof(WRITE_VALUES) / sizeof(*WRITE_VALUES),
-        &value_count, value_offsets
+        &value_count
     );
     assert_int_equal(ret, 92);
     assert_int_equal(value_count, 11);
-    assert_int_equal(value_offsets[0], 0);
-    assert_int_equal(value_offsets[1], 4);
-    assert_int_equal(value_offsets[2], 8);
-    assert_int_equal(value_offsets[3], 12);
-    assert_int_equal(value_offsets[4], 16);
-    assert_int_equal(value_offsets[5], 20);
-    assert_int_equal(value_offsets[6], 28);
-    assert_int_equal(value_offsets[7], 36);
-    assert_int_equal(value_offsets[8], 44);
-    assert_int_equal(value_offsets[9], 60);
-    assert_int_equal(value_offsets[10], 76);
 }
 
 #ifndef COSC_NOARRAY
@@ -100,7 +76,6 @@ static void test_with_array(void **state)
 {
     cosc_int32 ret;
     cosc_int32 value_count = 0;
-    cosc_int32 value_offsets[31];
     union cosc_value read_values[31] = {0};
     union cosc_value write_values[31];
     write_values[0].i = 10;
@@ -110,32 +85,19 @@ static void test_with_array(void **state)
         buffer, sizeof(buffer),
         ",i[fff]", 1024,
         write_values, 31,
-        &value_count, value_offsets
+        &value_count
     );
     assert_int_equal(ret, 4 + 12 * 10);
     assert_int_equal(value_count, 31);
-    cosc_int32 offset = 0;
-    for (cosc_int32 i = 0; i < value_count; i++)
-    {
-        assert_int_equal(value_offsets[i], offset);
-        offset += 4;
-    }
     value_count = 0;
-    memset(value_offsets, 0, sizeof(value_offsets));
     ret = cosc_read_values(
         buffer, sizeof(buffer),
         ",i[fff]", 1024,
         read_values, 31,
-        &value_count, value_offsets
+        &value_count
     );
     assert_int_equal(ret, 4 + 12 * 10);
     assert_int_equal(value_count, 31);
-    offset = 0;
-    for (cosc_int32 i = 0; i < value_count; i++)
-    {
-        assert_int_equal(value_offsets[i], offset);
-        offset += 4;
-    }
     assert_int_equal(read_values[0].i, 10);
 }
 #endif
