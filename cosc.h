@@ -72,7 +72,6 @@
  */
 
 #ifndef COSC_API
-
 #ifdef COSC_BUILD_SHARED
 #ifdef _MSC_VER
 #define COSC_API __declspec(dllexport)
@@ -610,8 +609,6 @@ struct cosc_reader
 extern "C" {
 #endif
 
-#ifndef COSC_NOPATTERN
-
 /**
  * Feature test for 64-bit integer support.
  * @returns Non-zero if cosc was built with 64-bit integer support.
@@ -744,6 +741,8 @@ COSC_API cosc_int32 cosc_typetag_payload(
     cosc_int32 typetag_n,
     cosc_int32 *array_members
 );
+
+#ifndef COSC_NOPATTERN
 
 /**
  * Check if an pattern character is valid.
