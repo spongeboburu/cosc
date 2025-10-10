@@ -92,11 +92,11 @@ static cosc_int32 cosc_memcmp(const void *a, const void *b, cosc_int32 n)
 
 #if __cplusplus >= 202002L && !defined(COSC_NOSTDLIB)
 #include <bit>
-#define COSC_PUN(type_in_, type_out_, value_) (std::bit_cast<type_out_>(value_))
+#define COSC_PUN(type_in_, type_out_, value_) (std::bit_cast<type_out_>((type_in_)(value_)))
 #elif defined(__cplusplus)
 template <typename IN, typename OUT>
 inline OUT cosc_pun(IN in) { OUT out; cosc_memcpy(&out, &in, sizeof(out)); return out; }
-#define COSC_PUN(type_in_, type_out_, value_) cosc_pun<type_in_, type_out_>(value_)
+#define COSC_PUN(type_in_, type_out_, value_) cosc_pun<type_in_, type_out_>((type_in_)(value_))
 #else
 #define COSC_PUN(type_in_, type_out_, value_) (((union { type_in_ in; type_out_ out; }){.in=(value_)}).out)
 #endif
