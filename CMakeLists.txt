@@ -240,7 +240,7 @@ if(NOT EMSCRIPTEN)
     set(unit_test_names
         values
         message
-        timetag
+        conversions
         address
         typetag
         basics
@@ -291,6 +291,8 @@ if(NOT EMSCRIPTEN)
         add_unit_test("${unit_test_name}" "" "")
         add_unit_test("${unit_test_name}" "_noswap" "-DCOSC_NOSWAP")
         add_unit_test("${unit_test_name}" "_nostdlib" "-DCOSC_NOSTDLIB")
+        add_unit_test("${unit_test_name}" "_nofloat32" "-DCOSC_NOFLOAT32")
+        add_unit_test("${unit_test_name}" "_nofloat64" "-DCOSC_NOFLOAT64")
         add_unit_test("${unit_test_name}" "_nofloat" "-DCOSC_NOFLOAT32 -DCOSC_NOFLOAT64")
         add_unit_test("${unit_test_name}" "_noint64" "-DCOSC_NOINT64")
         add_unit_test("${unit_test_name}" "_no64" "-DCOSC_NOINT64 -DCOSC_NOFLOAT64")

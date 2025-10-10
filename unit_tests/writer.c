@@ -172,7 +172,7 @@ static void test_message_noarray(void **state)
     cosc_int64 i64 = {0, 0x12345678};
     cosc_uint64 u64 = {0, 0x12345678};
 #endif
-#if defined(COSC_NOINT64)  && defined(COSC_NOFLOAT64)
+#if defined(COSC_NOFLOAT64)
     cosc_float64 f64 = {0, 1234};
 #else
     cosc_float64 f64 = 0;

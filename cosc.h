@@ -67,6 +67,10 @@
  */
 
 /**
+ * @example bundle.c
+ */
+
+/**
  * Used to declare linkage for functions.
  * @def COSC_API
  */
@@ -194,7 +198,7 @@
 #define COSC_TYPE_FLOAT64 double
 #endif
 #else
-#define COSC_TYPE_FLOAT64 COSC_TYPE_UINT64
+#define COSC_TYPE_FLOAT64 struct cosc_64bits
 #endif
 
 /**
@@ -658,6 +662,14 @@ COSC_API cosc_int32 cosc_feature_writer(void);
 COSC_API cosc_int32 cosc_feature_reader(void);
 
 /**
+ * If big endian was detected when building this function returns non-zero,
+ * otherwise zero.
+ * @returns Non-zero if big endian was detected when building,
+ * otherwise zero.
+ */
+COSC_API cosc_int32 cosc_feature_big_endian(void);
+
+/**
  * Check if an address character is valid.
  * @param c The character.
  * @returns Non-zero if valid or zero if invalid.
@@ -861,13 +873,82 @@ COSC_API cosc_uint32 cosc_timetag_to_time(
  * @param seconds The time in seconds.
  * @param nanos The time nanos.
  * @returns The timetag.
- * @warning Beware when COSC_NOINT64 is defined! Because I failed to implement
- * a 64-bit division using only 32 bit integers the resolution of @p nanos
- * is reduced to 1/10th milliseconds instead of 1/4 nanoseconds.
  */
 COSC_API cosc_uint64 cosc_timetag_from_time(
     cosc_uint32 seconds,
     cosc_uint32 nanos
+);
+
+/**
+ * Convert a @ref cosc_64bits struct to an unsigned 64-bit integer.
+ * @param bits The 64-bit struct.
+ * @returns The unsigned 64-bit integer.
+ * @note If cosc was built with COSC_NOINT64 the function simply
+ * returns @p bits as is.
+ * @remark On little endian systems the hi and lo members of the struct
+ * will be swapped.
+ */
+COSC_API cosc_uint64 cosc_64bits_to_uint64(
+    struct cosc_64bits bits
+);
+
+/**
+ * Convert an unsigned 64-bit integer value to a @ref cosc_64bits struct.
+ * @param value The value.
+ * @returns The unsigned 64-bit integer.
+ * @note If cosc was built with COSC_NOINT64 the function simply
+ * returns @p value as is.
+ */
+COSC_API struct cosc_64bits cosc_64bits_from_uint64(
+    cosc_uint64 value
+);
+
+/**
+ * Convert a @ref cosc_64bits struct to a signed 64-bit integer.
+ * @param bits The 64-bit struct.
+ * @returns The signed 64-bit integer.
+ * @note If cosc was built with COSC_NOINT64 the function simply
+ * returns @p bits as is.
+ * @remark On little endian systems the hi and lo members of the struct
+ * will be swapped.
+ */
+COSC_API cosc_int64 cosc_64bits_to_int64(
+    struct cosc_64bits bits
+);
+
+/**
+ * Convert a signed 64-bit integer value to a @ref cosc_64bits struct.
+ * @param value The value.
+ * @returns The signed 64-bit integer.
+ * @note If cosc was built with COSC_NOINT64 the function simply
+ * returns @p value as is.
+ */
+COSC_API struct cosc_64bits cosc_64bits_from_int64(
+    cosc_int64 value
+);
+
+/**
+ * Convert a @ref cosc_64bits struct to a 64-bit float.
+ * @param bits The 64-bit struct.
+ * @returns The 64-bit float.
+ * @note If cosc was built with COSC_NOFLOAT64 the function simply
+ * returns @p bits as is.
+ * @remark On little endian systems the hi and lo members of the struct
+ * will be swapped.
+ */
+COSC_API cosc_float64 cosc_64bits_to_float64(
+    struct cosc_64bits bits
+);
+
+/**
+ * Convert a 64-bit float value to a @ref cosc_64bits struct.
+ * @param value The value.
+ * @returns The 64-bit float.
+ * @note If cosc was built with COSC_NOFLOAT64 the function simply
+ * returns @p value as is.
+ */
+COSC_API struct cosc_64bits cosc_64bits_from_float64(
+    cosc_float64 value
 );
 
 /**

@@ -605,6 +605,12 @@ cosc_int32 cosc_feature_reader(void)
 #endif
 }
 
+cosc_int32 cosc_feature_big_endian(void)
+{
+    const cosc_uint32 u = 1;
+    return ((const unsigned char *)&u)[3];
+}
+
 cosc_int32 cosc_address_char_validate(
     cosc_int32 c
 )
@@ -1066,6 +1072,95 @@ cosc_uint64 cosc_timetag_from_time(
     tmp /= 1000000000;
     tmp |= (cosc_uint64)seconds << 32;
     return tmp;
+#endif
+}
+
+cosc_uint64 cosc_64bits_to_uint64(
+    struct cosc_64bits bits
+)
+{
+#ifdef COSC_NOINT64
+    return bits;
+#else
+    if (!cosc_feature_big_endian())
+    {
+        cosc_uint32 tmp = bits.hi;
+        bits.hi = bits.lo;
+        bits.lo = tmp;
+    }
+    return COSC_PUN(struct cosc_64bits, cosc_uint64, bits);
+#endif
+}
+
+struct cosc_64bits cosc_64bits_from_uint64(
+    cosc_uint64 value
+)
+{
+#ifdef COSC_NOINT64
+    return value;
+#else
+    struct cosc_64bits tmp = {
+        (value & 0xffffffff00000000ULL) >> 32,
+        value & 0xffffffff
+    };
+    return tmp;
+#endif
+}
+
+cosc_int64 cosc_64bits_to_int64(
+    struct cosc_64bits bits
+)
+{
+#ifdef COSC_NOINT64
+    return bits;
+#else
+    return COSC_PUN(cosc_uint64, cosc_int64, cosc_64bits_to_uint64(bits));
+#endif
+}
+
+struct cosc_64bits cosc_64bits_from_int64(
+    cosc_int64 value
+)
+{
+#ifdef COSC_NOINT64
+    return value;
+#else
+    return cosc_64bits_from_uint64(COSC_PUN(cosc_int64, cosc_uint64, value));
+#endif
+}
+
+cosc_float64 cosc_64bits_to_float64(
+    struct cosc_64bits bits
+)
+{
+#ifdef COSC_NOFLOAT64
+    return bits;
+#else
+    if (!cosc_feature_big_endian())
+    {
+        cosc_uint32 tmp = bits.hi;
+        bits.hi = bits.lo;
+        bits.lo = tmp;
+    }
+    return COSC_PUN(struct cosc_64bits, cosc_float64, bits);
+#endif
+}
+
+struct cosc_64bits cosc_64bits_from_float64(
+    cosc_float64 value
+)
+{
+#ifdef COSC_NOFLOAT64
+    return value;
+#else
+    struct cosc_64bits bits = COSC_PUN(cosc_float64, struct cosc_64bits, value);
+    if (!cosc_feature_big_endian())
+    {
+        cosc_uint32 tmp = bits.hi;
+        bits.hi = bits.lo;
+        bits.lo = tmp;
+    }
+    return bits;
 #endif
 }
 
@@ -1582,7 +1677,7 @@ cosc_int32 cosc_write_value(
     const union cosc_value *value
 )
 {
-#ifdef COSC_NOINT64
+#if defined(COSC_NOINT64) || defined(COSC_NOFLOAT64)
     static const struct cosc_64bits zero64 = {0, 0};
 #endif
     if (buffer)
