@@ -12,7 +12,7 @@
  * - COSC_NOPATTERN to remove the pattern matching functions.
  * - COSC_NOSWAP for no endian swapping.
  * - COSC_NOARRAY to remove the support for arrays.
- * - COSC_NOSTDINT to not include `stdint.h` (or <cstdint> if C++).
+ * - COSC_NOSTDINT to not include `stdint.h` (or `cstdint` if C++).
  * - COSC_NODUMP to remove the dump functions.
  * - COSC_NOWRITER to remove the writer functions.
  * - COSC_NOREADER to remove the reader functions.
@@ -63,7 +63,7 @@
 #define COSC_H
 
 /**
- * @example single_message.c
+ * @example message.c
  */
 
 /**
@@ -1799,7 +1799,7 @@ COSC_API cosc_int32 cosc_writer_get_level_size(
  * @param writer The writer.
  * @returns The type of the current level of the writer, will be 0
  * if no level has been started.
- * @see @ref COSC_LEVEL_TYPE_BUNDLE, @ref COSC_LEVEL_TYPE_MSSAGE
+ * @see @ref COSC_LEVEL_TYPE_BUNDLE, @ref COSC_LEVEL_TYPE_MESSAGE
  * and @ref COSC_LEVEL_TYPE_BLOB.
  * @remark This function is not available if COSC_NOWRITER was defined
  * when compiling.
@@ -1899,7 +1899,8 @@ COSC_API cosc_int32 cosc_writer_open_blob(
 /**
  * Close one or more levels of open bundles, messages and blobs.
  * @param writer The writer.
- * @param levels The number of levels to close.
+ * @param levels The number of levels to close or a negative value
+ * to close all open levels.
  * @returns The number of bytes added to the buffer on success
  * or a negative error code on failure.
  * @note If any open levels are messages any remaining message members
@@ -2270,7 +2271,7 @@ COSC_API cosc_int32 cosc_reader_get_level_psize(
  * @param reader The reader.
  * @returns The type of the current level of the reader, will be 0
  * if no level has been started.
- * @see @ref COSC_LEVEL_TYPE_BUNDLE, @ref COSC_LEVEL_TYPE_MSSAGE
+ * @see @ref COSC_LEVEL_TYPE_BUNDLE, @ref COSC_LEVEL_TYPE_MESSAGE
  * and @ref COSC_LEVEL_TYPE_BLOB.
  * @remark This function is not available if COSC_NOREADER was defined
  * when compiling.
@@ -2305,10 +2306,27 @@ COSC_API const void *cosc_reader_get_buffer(
 );
 
 /**
- * Open a new bundle and add a level.
+ * Peek a bundle.
  * @param reader The reader.
  * @param[out] timetag If non-NULL and the function does not return
  * a negative error code the timetag is stored here.
+ * @param[out] psize If non-NULL and the function does not return
+ * a negative error code the bundle size is stored here. If this is
+ * a single bundle read without the @ref COSC_SERIAL_PSIZE flag
+ * the value stored is 0.
+ * @returns The number of read bytes or a negative error code on failure.
+ * @remark This function is not available if COSC_NOREADER was defined
+ * when compiling.
+ */
+COSC_API cosc_int32 cosc_reader_peek_bundle(
+    struct cosc_reader *reader,
+    cosc_uint64 *timetag,
+    cosc_int32 *psize
+);
+
+/**
+ * Open a new bundle and add a level.
+ * @param reader The reader.
  * @param[out] timetag If non-NULL and the function does not return
  * a negative error code the timetag is stored here.
  * @param[out] psize If non-NULL and the function does not return
@@ -2375,8 +2393,8 @@ COSC_API cosc_int32 cosc_reader_open_blob(
 /**
  * Close one or more levels of open bundles, messages and blobs.
  * @param reader The reader.
- * @param levels The number of levels to close, zero or a negative
- * value for all.
+ * @param levels The number of levels to close or a negative value
+ * to close all open levels.
  * @returns The number of bytes increased to the buffer on success
  * or a negative error code on failure.
  * @note If any open levels are messages any remaining message members
@@ -2493,7 +2511,7 @@ cosc_int32 cosc_reader_float64(
  * to the next member of the message typetag.
  * proceed to the next member of the message typetag.
  * @param reader The reader.
- * @param[out value If non-NULL store the string here.
+ * @param[out] value If non-NULL store the string here.
  * @param value_n Read at most this many bytes from @p value.
  * @param[ptr] ptr If non-NULL and the function does not return
  * a negative error code a pointer to the string is stored here.

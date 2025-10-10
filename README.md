@@ -30,7 +30,7 @@ perhaps <https://liblo.sourceforge.net/> is a better choice.
 - No dynamic allocations.
 - Use of standard library is optional.
 - Use of `stdint.h` is optional.
-- Ability to typedef custom type for integer and floats.
+- Ability to typedef custom types for integer and floats.
 - C99 and C++11 compliant.
 - No optimizations relying on undefined behavior.
 - MIT license.
@@ -48,8 +48,7 @@ unlike BLOBs for example, makes it very difficult to implement in a
 flexible way which is why many implementations do not support arrays.
 
 The limitation is then that arrays may appear only once and only at
-the end of the message. It would be possible to scan ahead and
-calculate the exact size of the array based on the trailing types,
+the end of the message.
 
 Example uses of arrays in a typetag:
 
@@ -62,6 +61,37 @@ other OSC endpoints you should make sure they have support for arrays.
 
 Array support can be removed at compile time by defining COSC_NOARRAY which
 may provide a modest performance boost if arrays are not required.
+
+
+## Building
+
+Using a compiler, for example gcc, if in the source directory:
+
+```
+gcc -std=c99 cosc.c
+```
+
+and then just add the `-D` defines as required.
+
+Using cmake, if in the source directory:
+
+```
+cmake -B build
+cmake --build build
+```
+
+by default cmake will only build the static library, but if you want to build
+everything go for something like this:
+
+```
+cmake -B build -DCOSC_BUILD_SHARED=ON -DCOSC_BUILD_EXAMPLES=ON -DCOSC_BUILD_TESTS=ON
+cmake --build build
+cmake --build build --target docs
+```
+
+will build static library, shared library, examples unit tests and generate
+Doxygen documentation. You can also add `-D` defines as required to the
+first cmake command.
 
 
 ## Requirements
@@ -91,7 +121,7 @@ Defined at compile and include time:
 - `COSC_NODUMP` to remove the dump functions.
 - `COSC_NOWRITER` to remove the writer functions.
 - `COSC_NOREADER` to remove the reader functions.
-- `COSC_NOSTDINT` for no inclusion of `stdint.h` (or <cstdint> if C++).
+- `COSC_NOSTDINT` for no inclusion of `stdint.h` (or `cstdint` if C++).
 - `COSC_NOINT64` to typedef `cosc_int64` and `cosc_uint64` types as `cosc_64bits`.
 - `COSC_NOFLOAT32` to typedef `cosc_float32` as `cosc_uint32`.
 - `COSC_NOFLOAT64` to typedef `cosc_float64` as `cosc_uint64`.
@@ -101,6 +131,109 @@ Defined at compile and include time:
 - `COSC_TYPE_UINT64` used to override typedef `cosc_uint64`.
 - `COSC_TYPE_INT64` used to override typedef `cosc_int64`.
 - `COSC_TYPE_FLOAT64` used to override typedef `cosc_float64`.
+
+
+## Example uses
+
+At it's lowest level you can just write the raw data:
+
+```c
+    char buffer[1024] = {0};
+    cosc_int32 ret, offset = 0;
+
+    // Write it
+    ret = cosc_write_string(buffer, sizeof(buffer), "/address", 1024, NULL);
+    offset += ret;
+    ret = cosc_write_string(buffer + offset, sizeof(buffer) - offset, ",if", 1024, NULL);
+    offset += ret;
+    ret = cosc_write_int32(buffer + offset, sizeof(buffer) - offset, 1234);
+    offset += ret;
+    ret = cosc_write_float32(buffer + offset, sizeof(buffer) - offset, 12.34);
+    offset += ret;
+
+    // Read it
+    offset = 0;
+    const char *address = buffer;
+    ret = cosc_read_string(buffer + offset, sizeof(buffer) - offset, NULL, 0, NULL);
+    offset += ret;
+    const char *typetag = buffer + offset;
+    ret = cosc_read_string(buffer + offset, sizeof(buffer) - offset, NULL, 0, NULL);
+    offset += ret;
+    cosc_int32 value_i;
+    ret = cosc_read_int32(buffer + offset, sizeof(buffer) - offset, &value_i);
+    offset += ret;
+    cosc_float32 value_f;
+    ret = cosc_read_float32(buffer + offset, sizeof(buffer) - offset, &value_f);
+    offset += ret;
+```
+
+Write and read full message using a struct:
+
+```c
+    char buffer[1024];
+    union cosc_value values[11] = {
+        {.i = 0x12345678},
+        {.f = 12.34f},
+        {.s = {.s="Hello World!", .length = 1024}},
+    };
+    struct cosc_message message;
+    message.address = "/hello_world";
+    message.address_n = 12;
+    message.typetag = ",ifs";
+    message.typetag_n = 4;
+    message.values.write = values;
+    message.values_n = 3;
+
+    cosc_write_message(
+        buffer, sizeof(buffer), &message,
+        true, NULL
+    );
+    cosc_read_message(
+        buffer, sizeof(buffer), &message,
+        &packet_size, &value_count
+    );
+```
+
+We could put a bundle ahead of it. This is the simple way of writing
+and reading OSC data, but there's a convenience API if you want to
+do more advanced nesting of messages in bundles etc.
+
+```c
+    char buffer[1024];
+    struct cosc_writer writer;
+    cosc_writer_setup(
+        &writer,
+        buffer, sizeof(buffer), // Store to this buffer.
+        levels, 4, // Provide 4 levels, 1 is minimum.
+        0 // Zero flags.
+    );
+    struct cosc_reader reader;
+    cosc_reader_setup(
+        &reader,
+        buffer, cosc_writer_get_size(&writer), // Load from this buffer.
+        levels, 4, // Levels.
+        0 // No flags.
+    );
+```
+
+and then using the writer/reader API to basically push or pop data
+from the buffer.
+
+### 64-bit types on non-64 systems.
+
+Handling 64-bit types on systems without them involves a struct with
+hi (most significant) and lo (least significant) members.
+
+```c
+struct cosc_64bits
+{
+    cosc_uint32 hi;
+    cosc_uint32 lo;
+};
+```
+
+There's a few conversion helper functions, but you are free to manipulate
+the bits for `cosc_uint64`, `cosc_int64` and `cosc_float64` this way.
 
 
 ## License

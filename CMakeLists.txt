@@ -216,6 +216,10 @@ if(NOT COSC_BUILD_EXAMPLES)
     set_target_properties(examples PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
 
+add_executable(example_lowlevel ${CMAKE_CURRENT_SOURCE_DIR}/examples/lowlevel.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
+add_dependencies(examples example_lowlevel)
+set_target_properties(example_lowlevel PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
 add_executable(example_message ${CMAKE_CURRENT_SOURCE_DIR}/examples/message.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
 add_dependencies(examples example_message)
 set_target_properties(example_message PROPERTIES EXCLUDE_FROM_ALL TRUE)
@@ -223,6 +227,10 @@ set_target_properties(example_message PROPERTIES EXCLUDE_FROM_ALL TRUE)
 add_executable(example_bundle ${CMAKE_CURRENT_SOURCE_DIR}/examples/bundle.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
 add_dependencies(examples example_bundle)
 set_target_properties(example_bundle PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+add_executable(example_serial ${CMAKE_CURRENT_SOURCE_DIR}/examples/serial.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
+add_dependencies(examples example_serial)
+set_target_properties(example_serial PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 #
 # Unit tests.
