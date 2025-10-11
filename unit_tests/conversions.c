@@ -8,98 +8,7 @@
 #include <stdio.h>
 #include "cosc.h"
 
-static void test_timetag_to_time(void **state)
-{
-    cosc_uint64 timetag;
-    cosc_uint32 seconds, nanos = 0xffffffff;
-#ifdef COSC_NOINT64
-
-    timetag.hi = 0x12345678;
-    timetag.lo = 0;
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0x12345678);
-    assert_int_equal(nanos, 0);
-    timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag.hi, 0x12345678);
-    assert_int_equal(timetag.lo, 0);
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0x12345678);
-    assert_int_equal(nanos, 0);
-
-    timetag.hi = 0x12345678;
-    timetag.lo = 0x80000000ULL;
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0x12345678);
-    assert_int_equal(nanos, 500000000);
-    timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag.hi, 0x12345678);
-    assert_int_equal(timetag.lo, 0x80000000);
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0x12345678);
-    assert_int_equal(nanos, 500000000);
-
-    timetag.hi = 0xffffffff;
-    timetag.lo = 0xffffffff;
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0xffffffff);
-    assert_int_equal(nanos, 999999999);
-    timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag.hi, 0xffffffff);
-    assert_int_equal(timetag.lo, 0xfffffffc);
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0xffffffff);
-    assert_int_equal(nanos, 999999999);
-
-    for (cosc_uint32 i = 0; i < 9999; i++)
-    {
-        cosc_uint32 tmp = i * 100000;
-        timetag = cosc_timetag_from_time(0, tmp);
-        cosc_timetag_to_time(timetag, &nanos);
-        assert_int_equal(nanos, tmp);
-    }
-#else
-
-    timetag = 0x1234567800000000ULL;
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0x12345678);
-    assert_int_equal(nanos, 0);
-    timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag, 0x1234567800000000ULL);
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0x12345678);
-    assert_int_equal(nanos, 0);
-
-    timetag = 0x1234567880000000ULL;
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0x12345678);
-    assert_int_equal(nanos, 500000000);
-    timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag, 0x1234567880000000ULL);
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0x12345678);
-    assert_int_equal(nanos, 500000000);
-
-    timetag = 0xffffffffffffffffULL;
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0xffffffff);
-    assert_int_equal(nanos, 999999999);
-    timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag, 0xfffffffffffffffcULL);
-    seconds = cosc_timetag_to_time(timetag, &nanos);
-    assert_int_equal(seconds, 0xffffffff);
-    assert_int_equal(nanos, 999999999);
-
-    for (cosc_uint32 i = 0; i < 9999; i++)
-    {
-        cosc_uint32 tmp = i * 100000;
-        timetag = cosc_timetag_from_time(0, tmp);
-        cosc_timetag_to_time(timetag, &nanos);
-        assert_int_equal(nanos, tmp);
-    }
-#endif
-}
-
-// FIXME: time to timetag?
+#ifndef COSC_NOCONVERSION
 
 static void test_64bits_to_uint64(void **state)
 {
@@ -173,16 +82,83 @@ static void test_64bits_from_float64(void **state)
     assert_int_equal(out.lo, 0x7ae147ae);
 }
 
+static void test_uint32_x_int32(void **state)
+{
+    cosc_int32 i = -1234;
+    cosc_uint32 u = cosc_uint32_from_int32(i);
+    assert_int_equal(u, 0xfffffb2e);
+    assert_int_equal(cosc_uint32_to_int32(u), -1234);
+}
+
+static void test_uint32_x_float32(void **state)
+{
+#ifndef COSC_NOFLOAT32
+    cosc_float32 f = 12.34;
+    cosc_uint32 u = cosc_uint32_from_float32(f);
+    assert_int_equal(u, 0x414570a4);
+    assert_float_equal(cosc_uint32_to_float32(u), 12.34, 0.001);
+#else
+    cosc_float32 f = 0x414570a4;
+    cosc_uint32 u = cosc_uint32_from_float32(f);
+    assert_int_equal(u, 0x414570a4);
+    assert_int_equal(cosc_uint32_to_float32(u), 0x414570a4);
+#endif
+}
+
+static void test_uint64_x_int64(void **state)
+{
+#ifndef COSC_NOINT64
+    cosc_int64 i = -1234;
+    cosc_uint64 u = cosc_uint64_from_int64(i);
+    assert_int_equal(cosc_uint64_to_int64(u), -1234);
+#else
+    cosc_int64 i = {1234, 5678};
+    cosc_uint64 u = cosc_uint64_from_int64(i);
+    assert_int_equal(u.hi, 1234);
+    assert_int_equal(u.lo, 5678);
+    i = cosc_uint64_to_int64(u);
+    assert_int_equal(i.hi, 1234);
+    assert_int_equal(i.lo, 5678);
+#endif
+}
+
+static void test_uint64_x_float64(void **state)
+{
+#ifndef COSC_NOFLOAT64
+    cosc_float64 f = 123.456;
+    cosc_uint64 u = cosc_uint64_from_float64(f);
+    assert_float_equal(cosc_uint64_to_float64(u), 123.456, 0.001);
+#else
+    cosc_float64 f = {0x405edd2f, 0x1a9fbe77};
+    cosc_uint64 u = cosc_uint64_from_float64(f);
+    f = cosc_uint64_to_float64(u);
+    assert_int_equal(f.hi, 0x405edd2f);
+    assert_int_equal(f.lo, 0x1a9fbe77);
+#endif
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_timetag_to_time),
         cmocka_unit_test(test_64bits_to_uint64),
         cmocka_unit_test(test_64bits_from_uint64),
         cmocka_unit_test(test_64bits_to_int64),
         cmocka_unit_test(test_64bits_from_int64),
         cmocka_unit_test(test_64bits_to_float64),
         cmocka_unit_test(test_64bits_from_float64),
+        cmocka_unit_test(test_uint32_x_int32),
+        cmocka_unit_test(test_uint32_x_float32),
+        cmocka_unit_test(test_uint64_x_int64),
+        cmocka_unit_test(test_uint64_x_float64),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
+
+#else /* !COSC_CONVERSION */
+#include <stdio.h>
+int main(void)
+{
+    printf("Built without conversion support, skipping test.\n");
+    return 0;
+}
+#endif

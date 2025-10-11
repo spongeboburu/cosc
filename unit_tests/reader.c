@@ -343,7 +343,7 @@ int main(void)
     return 0;
 }
 
-#else /* !COSC_NOREADER && ! COSC_NOSWAP */
+#else /* !COSC_NOREADER && !COSC_NOSWAP */
 #include <stdio.h>
 int main(void)
 {

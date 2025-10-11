@@ -210,104 +210,17 @@ endif()
 #
 # Examples.
 #
-
-add_custom_target(examples ALL)
-if(NOT COSC_BUILD_EXAMPLES)
-    set_target_properties(examples PROPERTIES EXCLUDE_FROM_ALL TRUE)
+#
+if(NOT EMSCRIPTEN)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/examples/examples.cmake)
 endif()
-
-add_executable(example_lowlevel ${CMAKE_CURRENT_SOURCE_DIR}/examples/lowlevel.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
-add_dependencies(examples example_lowlevel)
-set_target_properties(example_lowlevel PROPERTIES EXCLUDE_FROM_ALL TRUE)
-
-add_executable(example_message ${CMAKE_CURRENT_SOURCE_DIR}/examples/message.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
-add_dependencies(examples example_message)
-set_target_properties(example_message PROPERTIES EXCLUDE_FROM_ALL TRUE)
-
-add_executable(example_bundle ${CMAKE_CURRENT_SOURCE_DIR}/examples/bundle.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
-add_dependencies(examples example_bundle)
-set_target_properties(example_bundle PROPERTIES EXCLUDE_FROM_ALL TRUE)
-
-add_executable(example_serial ${CMAKE_CURRENT_SOURCE_DIR}/examples/serial.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
-add_dependencies(examples example_serial)
-set_target_properties(example_serial PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 #
 # Unit tests.
 #
-
 if(NOT EMSCRIPTEN)
-
-    enable_testing()
-
-    add_custom_target(unit_tests ALL)
-    if(NOT COSC_BUILD_TESTS)
-        set_target_properties(unit_tests PROPERTIES EXCLUDE_FROM_ALL TRUE)
-    endif()
-
-    set(unit_test_names
-        values
-        message
-        conversions
-        address
-        typetag
-        basics
-        signature
-        )
-    if (NOT COSC_NOWRITER)
-        list(APPEND unit_test_names writer)
-    endif()
-    if (NOT COSC_NOREADER)
-        list(APPEND unit_test_names reader)
-    endif()
-    
-    ExternalProject_Add(
-        cmocka
-        URL https://cmocka.org/files/1.1/cmocka-1.1.5.tar.xz
-        DOWNLOAD_EXTRACT_TIMESTAMP OFF
-        CMAKE_ARGS
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-        -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-        -DCMAKE_INSTALL_LIBDIR=lib
-        -DANDROID_ABI=${ANDROID_ABI}
-        -DWITH_EXAMPLES=OFF
-        -DWITH_STATIC_LIB=ON
-        )
-    set_target_properties(
-        cmocka PROPERTIES
-        EXCLUDE_FROM_ALL TRUE
-        )
-    ExternalProject_Get_Property(cmocka install_dir)
-
-    function(add_unit_test unit_test_name suffix flags)
-        set(executable_name unit_test_${unit_test_name}${suffix})
-        add_executable(${executable_name} ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests/${unit_test_name}.c ${CMAKE_CURRENT_SOURCE_DIR}/cosc.c)
-        set_target_properties(
-            ${executable_name} PROPERTIES
-            EXCLUDE_FROM_ALL TRUE
-            )
-        target_include_directories(${executable_name} PUBLIC ${install_dir}/include)
-        target_compile_options(${executable_name} PUBLIC ${flags})
-        target_link_libraries(${executable_name} PUBLIC ${install_dir}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}cmocka-static${CMAKE_STATIC_LIBRARY_SUFFIX})
-        add_dependencies(${executable_name} cmocka)
-        add_dependencies(unit_tests ${executable_name})
-        add_test(test_${unit_test_name}${suffix} ${executable_name})
-    endfunction()
-
-    foreach(unit_test_name ${unit_test_names})
-        add_unit_test("${unit_test_name}" "" "")
-        add_unit_test("${unit_test_name}" "_noswap" "-DCOSC_NOSWAP")
-        add_unit_test("${unit_test_name}" "_nostdlib" "-DCOSC_NOSTDLIB")
-        add_unit_test("${unit_test_name}" "_nofloat32" "-DCOSC_NOFLOAT32")
-        add_unit_test("${unit_test_name}" "_nofloat64" "-DCOSC_NOFLOAT64")
-        add_unit_test("${unit_test_name}" "_nofloat" "-DCOSC_NOFLOAT32 -DCOSC_NOFLOAT64")
-        add_unit_test("${unit_test_name}" "_noint64" "-DCOSC_NOINT64")
-        add_unit_test("${unit_test_name}" "_no64" "-DCOSC_NOINT64 -DCOSC_NOFLOAT64")
-        add_unit_test("${unit_test_name}" "_noarray" "-DCOSC_NOARRAY")
-    endforeach()
-
-endif() # COSC_BUILD_TESTS
+    include(${CMAKE_CURRENT_SOURCE_DIR}/unit_tests/unit_tests.cmake)
+endif()
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)

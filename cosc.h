@@ -16,6 +16,8 @@
  * - COSC_NODUMP to remove the dump functions.
  * - COSC_NOWRITER to remove the writer functions.
  * - COSC_NOREADER to remove the reader functions.
+ * - COSC_NOTIMETAG to remove timetag functions.
+ * - COSC_NOCONVERSION to remove cosc_64bits conversion and type punning functions.
  * - COSC_NOINT64 to typedef `cosc_int64` and `cosc_uint64` as @ref cosc_64bits.
  * - COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
  * - COSC_NOFLOAT64 to typedef `cosc_float64` as @ref cosc_64bits.
@@ -815,8 +817,8 @@ COSC_API cosc_int32 cosc_pattern_validate(
  *
  * Extended syntax for typetags, not part of the OSC specification:
  *
- * - '#' for typetags match a numeric value ('i', 'f', 'r', 'h', 't' and 'd').
- * - '#' for addresses match a numeric, base-10 digit (0-9).
+ * - '#' for typetags match a numeric type ('i', 'f', 'r', 'h', 't' and 'd').
+ * - '#' for addresses match a base-10 digit (0-9).
  * - 'B' match a boolean ('T' or 'F').
  *
  * When matching addresses '#' is simply ignored.
@@ -854,6 +856,8 @@ COSC_API cosc_int32 cosc_signature_match(
 
 #endif /* !COSC_NOPATTERN */
 
+#ifndef COSC_NOTIMETAG
+
 /**
  * Convert a timetag to seconds and nanoseconds.
  * @param timetag The timetag.
@@ -878,6 +882,10 @@ COSC_API cosc_uint64 cosc_timetag_from_time(
     cosc_uint32 seconds,
     cosc_uint32 nanos
 );
+
+#endif /* !COSC_NOTIMETAG */
+
+#ifndef COSC_NOCONVERSION
 
 /**
  * Convert a @ref cosc_64bits struct to an unsigned 64-bit integer.
@@ -950,6 +958,114 @@ COSC_API cosc_float64 cosc_64bits_to_float64(
 COSC_API struct cosc_64bits cosc_64bits_from_float64(
     cosc_float64 value
 );
+
+/**
+ * Do a bit copy from cosc_uint32 to cosc_int32.
+ * @param value
+ * @returns The bit copied value.
+ * @note This is mostly a helper function for writing bindings.
+ */
+COSC_API cosc_int32 cosc_uint32_to_int32(
+    cosc_uint32 value
+);
+
+/**
+ * Do a bit copy from cosc_int32 to cosc_uint32.
+ * @param value
+ * @returns The bit copied value.
+ * @note This is mostly a helper function for writing bindings.
+ */
+COSC_API cosc_uint32 cosc_uint32_from_int32(
+    cosc_int32 value
+);
+
+/**
+ * Do a bit copy from cosc_uint32 to cosc_float32.
+ * @param value
+ * @returns The bit copied value.
+ * @note If COSC_NOFLOAT32 was defined at compile time this function
+ * will return cosc_uint32.
+ * @note This is mostly a helper function for writing bindings.
+ */
+COSC_API cosc_float32 cosc_uint32_to_float32(
+    cosc_uint32 value
+);
+
+/**
+ * Do a bit copy from cosc_float32 to cosc_uint32.
+ * @param value
+ * @returns The bit copied value.
+ * @note If COSC_NOINT32 was defined at compile time this function
+ * will return the @p value (a cosc_32bits struct) as is.
+ * @note If COSC_NOFLOAT32 was defined at compile time this function
+ * will return the @p value as is.
+ * @note This is mostly a helper function for writing bindings.
+ */
+COSC_API cosc_uint32 cosc_uint32_from_float32(
+    cosc_float32 value
+);
+
+/**
+ * Do a bit copy from cosc_uint64 to cosc_int64.
+ * @param value
+ * @returns The bit copied value.
+ * @note If COSC_NOINT64 was defined at compile time this function
+ * will return the @p value (a cosc_64bits struct) as is.
+ * @note This is mostly a helper function for writing bindings.
+ */
+COSC_API cosc_int64 cosc_uint64_to_int64(
+    cosc_uint64 value
+);
+
+/**
+ * Do a bit copy from cosc_int64 to cosc_uint64.
+ * @param value
+ * @returns The bit copied value.
+ * @note If COSC_NOINT64 was defined at compile time this function
+ * will return the @p value (a cosc_64bits struct) as is.
+ * @note This is mostly a helper function for writing bindings.
+ */
+COSC_API cosc_uint64 cosc_uint64_from_int64(
+    cosc_int64 value
+);
+
+/**
+ * Do a bit copy from cosc_uint64 to cosc_float64.
+ * @param value
+ * @returns The bit copied value.
+ * @note If COSC_NOINT64 was defined at compile time this function
+ * will swap the hi lo members if required and copy the @ref cosc_64bits
+ * struct to the float.
+ * @note If COSC_NOFLOAT64 was defined at compile time this function
+ * will return a @ref cosc_64bits struct.
+ * @note If both COSC_NOINT64 and COSC_NOFLOAT64 were defined at compile
+ * time this function returns @p value as is.
+ * @note This is mostly a helper function for writing bindings.
+ */
+COSC_API cosc_float64 cosc_uint64_to_float64(
+    cosc_uint64 value
+);
+
+/**
+ * Do a bit copy from cosc_float64 to cosc_uint64.
+ * @param value
+ * @returns The bit copied value.
+ * @note If COSC_NOINT64 was defined at compile time this function
+ * will return the @p value (a cosc_64bits struct) as is.
+ * @note If COSC_NOINT64 was defined at compile time this function
+ * will return a @ref cosc_64bits struct.
+ * @note If COSC_NOFLOAT64 was defined at compile time this function
+ * will swap the hi lo members if required and copy the @ref cosc_64bits
+ * struct to the integer.
+ * @note If both COSC_NOINT64 and COSC_NOFLOAT64 were defined at compile
+ * time this function returns @p value as is.
+ * @note This is mostly a helper function for writing bindings.
+ */
+COSC_API cosc_uint64 cosc_uint64_from_float64(
+    cosc_float64 value
+);
+
+#endif /* !COSC_NOCONVERSION */
 
 /**
  * Write a 32-bit, big endian unsigned integer.

@@ -277,7 +277,7 @@ inline static cosc_float64 cosc_load_float64(
 #endif
 }
 
-#if defined(COSC_NOINT64)
+#if defined(COSC_NOINT64) || defined(COSC_NOTIMETAG)
 
 static struct cosc_64bits cosc_mul64(
     cosc_uint32 a,
@@ -357,7 +357,7 @@ static void cosc_add64(struct cosc_64bits *augend, cosc_uint32 addend)
     augend->lo += addend;
 }
 
-#endif /* COSC_NOINT64 */
+#endif /* COSC_NOINT64 || COSC_NOTIMETAG */
 
 #ifndef COSC_NOPATTERN
 
@@ -874,11 +874,10 @@ cosc_int32 cosc_pattern_match(
         is_typetag = 1;
         s_offset++;
     }
-    if (pattern_n > 0 && *pattern == ',')
-    {
-        is_typetag = 1;
+    else
+        is_typetag = 0;
+    if (pattern_n > 0 && *pattern == ',' && is_typetag)
         p_offset++;
-    }
     while (
         s_offset < s_n && s[s_offset] != 0
         && p_offset < pattern_n && pattern[p_offset] != 0)
@@ -1026,6 +1025,8 @@ cosc_int32 cosc_signature_match(
 
 #endif /* COSC_NOPATTERN */
 
+#ifndef COSC_NOTIMETAG
+
 cosc_uint32 cosc_timetag_to_time(
     cosc_uint64 timetag,
     cosc_uint32 *nanos
@@ -1074,6 +1075,10 @@ cosc_uint64 cosc_timetag_from_time(
     return tmp;
 #endif
 }
+
+#endif /* !COSC_NOTIMETAG */
+
+#ifndef COSC_NOCONVERSION
 
 cosc_uint64 cosc_64bits_to_uint64(
     struct cosc_64bits bits
@@ -1163,6 +1168,104 @@ struct cosc_64bits cosc_64bits_from_float64(
     return bits;
 #endif
 }
+
+cosc_int32 cosc_uint32_to_int32(
+    cosc_uint32 value
+)
+{
+    return COSC_PUN(cosc_uint32, cosc_int32, value);
+}
+
+cosc_uint32 cosc_uint32_from_int32(
+    cosc_int32 value
+)
+{
+    return COSC_PUN(cosc_int32, cosc_uint32, value);
+}
+
+cosc_float32 cosc_uint32_to_float32(
+    cosc_uint32 value
+)
+{
+#ifndef COSC_NOFLOAT32
+    return COSC_PUN(cosc_uint32, cosc_float32, value);
+#else
+    return value;
+#endif
+}
+
+cosc_uint32 cosc_uint32_from_float32(
+    cosc_float32 value
+)
+{
+#ifndef COSC_NOFLOAT32
+    return COSC_PUN(cosc_float32, cosc_uint32, value);
+#else
+    return value;
+#endif
+}
+
+cosc_int64 cosc_uint64_to_int64(
+    cosc_uint64 value
+)
+{
+#ifndef COSC_NOINT64
+    return COSC_PUN(cosc_uint64, cosc_int64, value);
+#else
+    return value;
+#endif
+}
+
+cosc_uint64 cosc_uint64_from_int64(
+    cosc_int64 value
+)
+{
+#ifndef COSC_NOINT64
+    return COSC_PUN(cosc_int64, cosc_uint64, value);
+#else
+    return value;
+#endif
+}
+
+cosc_float64 cosc_uint64_to_float64(
+    cosc_uint64 value
+)
+{
+#ifndef COSC_NOINT64
+#ifndef COSC_NOFLOAT64
+    return COSC_PUN(cosc_uint64, cosc_float64, value);
+#else
+    return cosc_64bits_from_uint64(value);
+#endif
+#else
+#ifndef COSC_NOFLOAT64
+    return cosc_64bits_to_float64(value);
+#else
+    return value;
+#endif
+#endif
+}
+
+cosc_uint64 cosc_uint64_from_float64(
+    cosc_float64 value
+)
+{
+#ifndef COSC_NOINT64
+#ifndef COSC_NOFLOAT64
+    return COSC_PUN(cosc_float64, cosc_uint64, value);
+#else
+    return cosc_64bits_to_uint64(value);
+#endif
+#else
+#ifndef COSC_NOFLOAT64
+    return cosc_64bits_from_float64(value);
+#else
+    return value;
+#endif
+#endif
+}
+
+#endif /* !COSC_NOCONVERSION */
 
 cosc_int32 cosc_write_uint32(
     void *buffer,
