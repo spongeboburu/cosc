@@ -62,7 +62,7 @@ static void test_empty_bundle_noprefix(void **state)
 #ifndef COSC_NOINT64
     cosc_uint64 timetag = 0x12345678;
 #else
-    cosc_uint64 timetag = {0, 0x12345678};
+    cosc_uint64 timetag = COSC_64BITS_INIT(0, 0x12345678);
 #endif
     cosc_writer_setup(&writer, buffer, sizeof(buffer), levels, level_max, 0);
     assert_int_equal(cosc_writer_open_bundle(&writer, timetag), 16);
@@ -76,7 +76,7 @@ static void test_empty_bundle_prefix(void **state)
 #ifndef COSC_NOINT64
     cosc_uint64 timetag = 0x12345678;
 #else
-    cosc_uint64 timetag = {0, 0x12345678};
+    cosc_uint64 timetag = COSC_64BITS_INIT(0, 0x12345678);
 #endif
     cosc_writer_setup(&writer, buffer, sizeof(buffer), levels, level_max, COSC_SERIAL_PSIZE);
     assert_int_equal(cosc_writer_open_bundle(&writer, timetag), 20);
@@ -112,7 +112,7 @@ static void test_bundle_empty_messages_noprefix(void **state)
 #ifndef COSC_NOINT64
     cosc_uint64 timetag = 0x12345678;
 #else
-    cosc_uint64 timetag = {0, 0x12345678};
+    cosc_uint64 timetag = COSC_64BITS_INIT(0, 0x12345678);
 #endif
     cosc_writer_setup(&writer, buffer, sizeof(buffer), levels, level_max, 0);
     assert_int_equal(cosc_writer_open_bundle(&writer, timetag), 16);
@@ -139,7 +139,7 @@ static void test_bundle_empty_messages_prefix(void **state)
 #ifndef COSC_NOINT64
     cosc_uint64 timetag = 0x12345678;
 #else
-    cosc_uint64 timetag = {0, 0x12345678};
+    cosc_uint64 timetag = COSC_64BITS_INIT(0, 0x12345678);
 #endif
     cosc_writer_setup(&writer, buffer, sizeof(buffer), levels, level_max, COSC_SERIAL_PSIZE);
     assert_int_equal(cosc_writer_open_bundle(&writer, timetag), 20);
@@ -169,11 +169,11 @@ static void test_message_noarray(void **state)
     cosc_int64 i64 = 0x12345678;
     cosc_uint64 u64 = 0x12345678;
 #else
-    cosc_int64 i64 = {0, 0x12345678};
-    cosc_uint64 u64 = {0, 0x12345678};
+    cosc_int64 i64 = COSC_64BITS_INIT(0, 0x12345678);
+    cosc_uint64 u64 = COSC_64BITS_INIT(0, 0x12345678);
 #endif
 #if defined(COSC_NOFLOAT64)
-    cosc_float64 f64 = {0, 1234};
+    cosc_float64 f64 = COSC_64BITS_INIT(0, 1234);
 #else
     cosc_float64 f64 = 0;
 #endif

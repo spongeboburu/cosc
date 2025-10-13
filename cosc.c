@@ -173,8 +173,8 @@ inline static void cosc_store_uint64(
     COSC_COPY64(buffer, &value);
 #else
 #ifdef COSC_NOINT64
-    cosc_store_uint32(buffer, value.hi);
-    cosc_store_uint32((char *)buffer + 4, value.lo);
+    cosc_store_uint32(buffer, value.w[0]);
+    cosc_store_uint32((char *)buffer + 4, value.w[1]);
 #else
     ((unsigned char *)buffer)[0] = (value & 0xff00000000000000ULL) >> 56;
     ((unsigned char *)buffer)[1] = (value & 0xff000000000000ULL) >> 48;
@@ -198,7 +198,7 @@ inline static cosc_uint64 cosc_load_uint64(
     return tmp;
 #else
 #ifdef COSC_NOINT64
-    struct cosc_64bits tmp = {cosc_load_uint32(buffer), cosc_load_uint32((char *)buffer + 4)};
+    struct cosc_64bits tmp = COSC_64BITS_INIT(cosc_load_uint32(buffer), cosc_load_uint32((char *)buffer + 4));
     return tmp;
 #else
     return (
@@ -238,11 +238,10 @@ inline static void cosc_store_float64(
 #if defined(COSC_NOSWAP)
     COSC_COPY64(buffer, &value);
 #elif defined(COSC_NOFLOAT64)
-    cosc_store_uint32(buffer, value.hi);
-    cosc_store_uint32((char *)buffer + 4, value.lo);
+    cosc_store_uint32(buffer, value.w[0]);
+    cosc_store_uint32((char *)buffer + 4, value.w[1]);
 #elif defined(COSC_NOINT64)
-    const cosc_uint32 test_big = 1;
-    if (!((const unsigned char *)&test_big)[0])
+    if (!cosc_feature_big_endian())
         COSC_COPY64SWAP(buffer, &value);
     else
         COSC_COPY64(buffer, &value);
@@ -261,13 +260,12 @@ inline static cosc_float64 cosc_load_float64(
     return tmp;
 #elif defined(COSC_NOFLOAT64)
     cosc_float64 tmp;
-    tmp.hi = cosc_load_uint32(buffer);
-    tmp.lo = cosc_load_uint32((const char *)buffer + 4);
+    tmp.w[0] = cosc_load_uint32(buffer);
+    tmp.w[1] = cosc_load_uint32((const char *)buffer + 4);
     return tmp;
 #elif defined(COSC_NOINT64)
-    const cosc_uint32 test_big = 1;
     cosc_float64 tmp;
-    if (!((const unsigned char *)&test_big)[0])
+    if (!cosc_feature_big_endian())
         COSC_COPY64SWAP(&tmp, buffer);
     else
         COSC_COPY64(&tmp, buffer);
@@ -312,38 +310,37 @@ static struct cosc_64bits cosc_mul64(
     product[2] &= 0xffff;
     product[3] &= 0xffff;
 
-    struct cosc_64bits res =
-    {
+    struct cosc_64bits res = COSC_64BITS_INIT(
         (product[3] << 16) | product[2],
         (product[1] << 16) | product[0]
-    };
+    );
     return res;
 }
 
 static void cosc_div64(struct cosc_64bits *dividend, cosc_uint32 divisor)
 {
-    struct cosc_64bits q = {0, 0};
-    struct cosc_64bits r = {0, 0};
+    struct cosc_64bits q = COSC_64BITS_INIT(0, 0);
+    struct cosc_64bits r = COSC_64BITS_INIT(0, 0);
     if (divisor > 0)
     {
         for (cosc_int32 i = 63; i >= 0; i--)
         {
-            r.hi <<= 1;
-            r.hi |= (r.lo & 0x80000000) >> 31;
-            r.lo <<= 1;
+            r.w[0] <<= 1;
+            r.w[0] |= (r.w[1] & 0x80000000) >> 31;
+            r.w[1] <<= 1;
             if (i < 32)
-                r.lo |= (dividend->lo & (1U << i)) >> i;
+                r.w[1] |= (dividend->w[1] & (1U << i)) >> i;
             else
-                r.lo |= (dividend->hi & (1U << (i - 32))) >> (i - 32);
-            if (r.lo >= divisor || r.hi > 0)
+                r.w[1] |= (dividend->w[0] & (1U << (i - 32))) >> (i - 32);
+            if (r.w[1] >= divisor || r.w[0] > 0)
             {
-                if (r.lo < divisor)
-                    r.hi--;
-                r.lo -= divisor;
+                if (r.w[1] < divisor)
+                    r.w[0]--;
+                r.w[1] -= divisor;
                 if (i < 32)
-                    q.lo |= 1U << i;
+                    q.w[1] |= 1U << i;
                 else
-                    q.hi |= 1U << (i - 32);
+                    q.w[0] |= 1U << (i - 32);
             }
         }
     }
@@ -352,9 +349,9 @@ static void cosc_div64(struct cosc_64bits *dividend, cosc_uint32 divisor)
 
 static void cosc_add64(struct cosc_64bits *augend, cosc_uint32 addend)
 {
-    if (addend > 0xffffffff - augend->lo)
-        augend->hi++;
-    augend->lo += addend;
+    if (addend > 0xffffffff - augend->w[1])
+        augend->w[0]++;
+    augend->w[1] += addend;
 }
 
 #endif /* COSC_NOINT64 || COSC_NOTIMETAG */
@@ -581,6 +578,15 @@ cosc_int32 cosc_feature_array(void)
 cosc_int32 cosc_feature_pattern(void)
 {
 #ifdef COSC_NOPATTERN
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+cosc_int32 cosc_feature_timetag(void)
+{
+#ifdef COSC_NOTIMETAG
     return 0;
 #else
     return 1;
@@ -1035,11 +1041,11 @@ cosc_uint32 cosc_timetag_to_time(
 #ifdef COSC_NOINT64
     if (nanos)
     {
-        struct cosc_64bits tmp = cosc_mul64(timetag.lo, 1000000000);
+        struct cosc_64bits tmp = cosc_mul64(timetag.w[1], 1000000000);
         cosc_add64(&tmp, 500000000);
-        *nanos = tmp.hi; // Same as >> 32.
+        *nanos = tmp.w[0]; // Same as >> 32.
     }
-    return timetag.hi;
+    return timetag.w[0];
 #else
     if (nanos)
     {
@@ -1061,10 +1067,10 @@ cosc_uint64 cosc_timetag_from_time(
     seconds += nanos / 1000000000;
     nanos %= 1000000000;
 #ifdef COSC_NOINT64
-    struct cosc_64bits res = {nanos, 0};
+    struct cosc_64bits res = COSC_64BITS_INIT(nanos, 0);
     cosc_add64(&res, 0x20000000);
     cosc_div64(&res, 1000000000);
-    res.hi = seconds;
+    res.w[0] = seconds;
     return res;
 #else
     cosc_uint64 tmp = nanos;
@@ -1077,6 +1083,101 @@ cosc_uint64 cosc_timetag_from_time(
 }
 
 #endif /* !COSC_NOTIMETAG */
+
+cosc_uint64 cosc_64bits_to_uint64(
+    struct cosc_64bits value
+)
+{
+#ifndef COSC_NOINT64
+    return ((cosc_uint64)value.w[0] << 32) | (cosc_uint64)value.w[1];
+#else
+    return value;
+#endif
+}
+
+struct cosc_64bits cosc_64bits_from_uint64(
+    cosc_uint64 value
+)
+{
+#ifndef COSC_NOINT64
+    struct cosc_64bits ret = COSC_64BITS_INIT((value & 0xffffffff00000000ULL) >> 32, value & 0xffffffff);
+    return ret;
+#else
+    return value;
+#endif
+}
+
+cosc_int64 cosc_64bits_to_int64(
+    struct cosc_64bits value
+)
+{
+#ifndef COSC_NOINT64
+    return COSC_PUN(cosc_uint64, cosc_int64, ((cosc_uint64)value.w[0] << 32) | (cosc_uint64)value.w[1]);
+#else
+    return value;
+#endif
+}
+
+struct cosc_64bits cosc_64bits_from_int64(
+    cosc_int64 value
+)
+{
+#ifndef COSC_NOINT64
+    cosc_uint64 tmp = COSC_PUN(cosc_int64, cosc_uint64, value);
+    struct cosc_64bits ret = COSC_64BITS_INIT((tmp & 0xffffffff00000000ULL) >> 32, tmp & 0xffffffff);
+    return ret;
+#else
+    return value;
+#endif
+}
+
+cosc_float64 cosc_64bits_to_float64(
+    struct cosc_64bits value
+)
+{
+#ifndef COSC_NOFLOAT64
+#ifndef COSC_NOINT64
+    cosc_uint64 tmp = COSC_64BITS_GETHI(&value);
+    tmp <<= 32;
+    tmp |= COSC_64BITS_GETLO(&value);
+    return COSC_PUN(cosc_uint64, cosc_float64, tmp);
+#else
+    if (!cosc_feature_big_endian())
+    {
+        cosc_uint32 tmp = value.w[0];
+        value.w[0] = value.w[1];
+        value.w[1] = tmp;
+    }
+    return COSC_PUN(struct cosc_64bits, cosc_float64, value);
+#endif
+#else
+    return value;
+#endif
+}
+
+struct cosc_64bits cosc_64bits_from_float64(
+    cosc_float64 value
+)
+{
+#ifndef COSC_NOFLOAT64
+#ifndef COSC_NOINT64
+    cosc_uint64 tmp = COSC_PUN(cosc_float64, cosc_uint64, value);
+    struct cosc_64bits ret = COSC_64BITS_INIT((tmp >> 32) & 0xffffffff, tmp & 0xffffffff);
+    return ret;
+#else
+    struct cosc_64bits ret = COSC_PUN(cosc_float64, struct cosc_64bits, value);
+    if (!cosc_feature_big_endian())
+    {
+        cosc_uint32 tmp = ret.w[0];
+        ret.w[0] = ret.w[1];
+        ret.w[1] = tmp;
+    }
+    return ret;
+#endif
+#else
+    return value;
+#endif
+}
 
 cosc_int32 cosc_write_uint32(
     void *buffer,
@@ -1592,7 +1693,7 @@ cosc_int32 cosc_write_value(
 )
 {
 #if defined(COSC_NOINT64) || defined(COSC_NOFLOAT64)
-    static const struct cosc_64bits zero64 = {0, 0};
+    static const struct cosc_64bits zero64 = COSC_64BITS_INIT(0, 0);
 #endif
     if (buffer)
     {
@@ -2009,14 +2110,14 @@ cosc_int32 cosc_value_dump(
     case 'S':
     case 's': return snprintf(s, n, "\"%s\"", value->s.s ? value->s.s : "");
 #ifdef COSC_NOINT64
-    case 'h': return snprintf(s, n, "0x%08x %08x", value->h.hi, value->h.lo);
-    case 't': return snprintf(s, n, "0x%08x %08x", value->t.hi, value->t.lo);
+    case 'h': return snprintf(s, n, "0x%08x %08x", value->h.w[0], value->h.w[1]);
+    case 't': return snprintf(s, n, "0x%08x %08x", value->t.w[0], value->t.w[1]);
 #else
     case 'h': return snprintf(s, n, "%" PRId64, value->h);
     case 't': return snprintf(s, n, "%" PRIu64, value->t);
 #endif
 #ifdef COSC_NOFLOAT64
-    case 'd': return snprintf(s, n, "0x%08x %08x" PRIx64, value->d.hi, value->d.lo);
+    case 'd': return snprintf(s, n, "0x%08x %08x" PRIx64, value->d.w[0], value->d.w[1]);
 #else
     case 'd': return snprintf(s, n, "%f", value->d);
 #endif

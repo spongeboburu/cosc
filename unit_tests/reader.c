@@ -105,14 +105,14 @@ static void test_empty_bundle_noprefix(void **state)
 #ifndef COSC_NOINT64
     cosc_uint64 timetag = 0;
 #else
-    cosc_uint64 timetag = {0, 0};
+    cosc_uint64 timetag = COSC_64BITS_INIT(0, 0);
 #endif
     cosc_reader_setup(&reader, empty_bundle_noprefix, sizeof(empty_bundle_noprefix), levels, level_max, 0);
     assert_int_equal(cosc_reader_open_bundle(&reader, &timetag, NULL), 16);
 #ifndef COSC_NOINT64
     assert_int_equal(timetag, 0x12345678);
 #else
-    assert_int_equal(timetag.lo, 0x12345678);
+    assert_int_equal(COSC_64BITS_GETLO(&timetag), 0x12345678);
 #endif
     assert_int_equal(cosc_reader_close(&reader, 1), 0);
     assert_int_equal(cosc_reader_get_size(&reader), 16);
@@ -124,7 +124,7 @@ static void test_empty_bundle_prefix(void **state)
 #ifndef COSC_NOINT64
     cosc_uint64 timetag = 0;
 #else
-    cosc_uint64 timetag = {0, 0};
+    cosc_uint64 timetag = COSC_64BITS_INIT(0, 0);
 #endif
     cosc_reader_setup(&reader, empty_bundle_prefix, sizeof(empty_bundle_prefix), levels, level_max, COSC_SERIAL_PSIZE);
     cosc_int32 psize = 0;
@@ -181,7 +181,7 @@ static void test_bundle_empty_messages_noprefix(void **state)
 #ifndef COSC_NOINT64
     cosc_uint64 timetag = 0;
 #else
-    cosc_uint64 timetag = {0, 0};
+    cosc_uint64 timetag = COSC_64BITS_INIT(0, 0);
 #endif
     const char *address = "", *typetag = "";
     cosc_int32 address_n = 0, typetag_n = 0;

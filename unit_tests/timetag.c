@@ -16,38 +16,38 @@ static void test_timetag_to_time(void **state)
     cosc_uint32 seconds, nanos = 0xffffffff;
 #ifdef COSC_NOINT64
 
-    timetag.hi = 0x12345678;
-    timetag.lo = 0;
+    COSC_64BITS_SETHI(&timetag, 0x12345678);
+    COSC_64BITS_SETLO(&timetag, 0);
     seconds = cosc_timetag_to_time(timetag, &nanos);
     assert_int_equal(seconds, 0x12345678);
     assert_int_equal(nanos, 0);
     timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag.hi, 0x12345678);
-    assert_int_equal(timetag.lo, 0);
+    assert_int_equal(COSC_64BITS_GETHI(&timetag), 0x12345678);
+    assert_int_equal(COSC_64BITS_GETLO(&timetag), 0);
     seconds = cosc_timetag_to_time(timetag, &nanos);
     assert_int_equal(seconds, 0x12345678);
     assert_int_equal(nanos, 0);
 
-    timetag.hi = 0x12345678;
-    timetag.lo = 0x80000000ULL;
+    COSC_64BITS_SETHI(&timetag, 0x12345678);
+    COSC_64BITS_SETLO(&timetag, 0x80000000);
     seconds = cosc_timetag_to_time(timetag, &nanos);
     assert_int_equal(seconds, 0x12345678);
     assert_int_equal(nanos, 500000000);
     timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag.hi, 0x12345678);
-    assert_int_equal(timetag.lo, 0x80000000);
+    assert_int_equal(COSC_64BITS_GETHI(&timetag), 0x12345678);
+    assert_int_equal(COSC_64BITS_GETLO(&timetag), 0x80000000);
     seconds = cosc_timetag_to_time(timetag, &nanos);
     assert_int_equal(seconds, 0x12345678);
     assert_int_equal(nanos, 500000000);
 
-    timetag.hi = 0xffffffff;
-    timetag.lo = 0xffffffff;
+    COSC_64BITS_SETHI(&timetag, 0xffffffff);
+    COSC_64BITS_SETLO(&timetag, 0xffffffff);
     seconds = cosc_timetag_to_time(timetag, &nanos);
     assert_int_equal(seconds, 0xffffffff);
     assert_int_equal(nanos, 999999999);
     timetag = cosc_timetag_from_time(seconds, nanos);
-    assert_int_equal(timetag.hi, 0xffffffff);
-    assert_int_equal(timetag.lo, 0xfffffffc);
+    assert_int_equal(COSC_64BITS_GETHI(&timetag), 0xffffffff);
+    assert_int_equal(COSC_64BITS_GETLO(&timetag), 0xfffffffc);
     seconds = cosc_timetag_to_time(timetag, &nanos);
     assert_int_equal(seconds, 0xffffffff);
     assert_int_equal(nanos, 999999999);
@@ -113,14 +113,14 @@ static void test_timetag_from_time(void **state)
     assert_int_equal(timetag, 0x0000000ffffffffcULL);
 #else
     timetag = cosc_timetag_from_time(0, 0);
-    assert_int_equal(timetag.hi, 0);
-    assert_int_equal(timetag.lo, 0);
+    assert_int_equal(COSC_64BITS_GETHI(&timetag), 0);
+    assert_int_equal(COSC_64BITS_GETLO(&timetag), 0);
     timetag = cosc_timetag_from_time(10, 500000000);
-    assert_int_equal(timetag.hi, 0xa);
-    assert_int_equal(timetag.lo, 0x80000000);
+    assert_int_equal(COSC_64BITS_GETHI(&timetag), 0xa);
+    assert_int_equal(COSC_64BITS_GETLO(&timetag), 0x80000000);
     timetag = cosc_timetag_from_time(15, 999999999);
-    assert_int_equal(timetag.hi, 0xf);
-    assert_int_equal(timetag.lo, 0xfffffffcULL);
+    assert_int_equal(COSC_64BITS_GETHI(&timetag), 0xf);
+    assert_int_equal(COSC_64BITS_GETLO(&timetag), 0xfffffffcULL);
 #endif
 }
 
