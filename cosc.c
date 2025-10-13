@@ -2970,7 +2970,7 @@ cosc_int32 cosc_reader_peek_bundle(
         return COSC_EPSIZEFLAG;
     cosc_int32 size = cosc_serial_get_size(&reader->serial);
     cosc_int32 has_psize = ((reader->serial.flags & COSC_SERIAL_PSIZE) || reader->serial.level >= 0);
-    cosc_int32 tmp_psize;
+    cosc_int32 tmp_psize = -1;
     cosc_int32 size_max = cosc_reader_get_psize(reader);
     cosc_int32 ret = cosc_read_bundle(reader->buffer + size, size_max - size, timetag, has_psize ? &tmp_psize : 0);
     if (ret < 0)
@@ -2992,7 +2992,7 @@ cosc_int32 cosc_reader_open_bundle(
         return COSC_EPSIZEFLAG;
     cosc_int32 size = cosc_serial_get_size(&reader->serial);
     cosc_int32 has_psize = ((reader->serial.flags & COSC_SERIAL_PSIZE) || reader->serial.level >= 0);
-    cosc_int32 tmp_psize;
+    cosc_int32 tmp_psize = -1;
     cosc_int32 size_max = cosc_reader_get_psize(reader);
     cosc_int32 ret = cosc_read_bundle(reader->buffer + size, size_max - size, timetag, has_psize ? &tmp_psize : 0);
     if (ret < 0)
@@ -3020,7 +3020,7 @@ cosc_int32 cosc_reader_open_message(
         return COSC_EPSIZEFLAG;
     cosc_int32 size = cosc_serial_get_size(&reader->serial);
     cosc_int32 has_psize = ((reader->serial.flags & COSC_SERIAL_PSIZE) || reader->serial.level >= 0);
-    cosc_int32 tmp_psize;
+    cosc_int32 tmp_psize = -1;
     cosc_int32 size_max = cosc_reader_get_psize(reader);
     const char *tmp_typetag;
     cosc_int32 tmp_typetag_n;
