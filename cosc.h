@@ -17,6 +17,7 @@
  * - COSC_NOWRITER to remove the writer functions.
  * - COSC_NOREADER to remove the reader functions.
  * - COSC_NOTIMETAG to remove timetag functions.
+ * - COSC_NO64BITSCONV to remove @ref cosc_64bits conversion functions.
  * - COSC_NOINT64 to typedef `cosc_int64` and `cosc_uint64` as @ref cosc_64bits.
  * - COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
  * - COSC_NOFLOAT64 to typedef `cosc_float64` as @ref cosc_64bits.
@@ -936,9 +937,11 @@ COSC_API cosc_uint64 cosc_timetag_from_time(
 
 #endif /* !COSC_NOTIMETAG */
 
+#ifndef COSC_NO64BITSCONV
+
 /**
  * Helper function to convert a 64-bit struct to an
- * unsigned integer.
+ * 64-bit unsigned integer.
  * @param value The integer value.
  * @returns A cosc_64bits struct with hi and lo members set.
  * @note If cosc was built with COSC_NOINT64 defined this
@@ -962,7 +965,7 @@ COSC_API struct cosc_64bits cosc_64bits_from_uint64(
 
 /**
  * Helper function to convert a 64-bit struct to a
- * signed integer.
+ * 64-bit signed integer.
  * @param value The integer value.
  * @returns A cosc_64bits struct with hi and lo members set.
  * @note If cosc was built with COSC_NOINT64 defined this
@@ -985,7 +988,7 @@ COSC_API struct cosc_64bits cosc_64bits_from_int64(
 );
 
 /**
- * Helper function to convert a 64-bit struct to a float.
+ * Helper function to convert a 64-bit struct to a 64-bit float.
  * @param value The integer value.
  * @returns A cosc_64bits struct with hi and lo members set.
  * @note If cosc was built with COSC_NOFLOAT64 defined this
@@ -1005,6 +1008,8 @@ COSC_API cosc_float64 cosc_64bits_to_float64(
 COSC_API struct cosc_64bits cosc_64bits_from_float64(
     cosc_float64 value
 );
+
+#endif /* !COSC_NO64BITSCONV */
 
 /**
  * Write a 32-bit, big endian unsigned integer.

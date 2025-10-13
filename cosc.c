@@ -1084,6 +1084,8 @@ cosc_uint64 cosc_timetag_from_time(
 
 #endif /* !COSC_NOTIMETAG */
 
+#ifndef COSC_NO64BITSCONV
+
 cosc_uint64 cosc_64bits_to_uint64(
     struct cosc_64bits value
 )
@@ -1100,7 +1102,7 @@ struct cosc_64bits cosc_64bits_from_uint64(
 )
 {
 #ifndef COSC_NOINT64
-    struct cosc_64bits ret = COSC_64BITS_INIT((value & 0xffffffff00000000ULL) >> 32, value & 0xffffffff);
+    struct cosc_64bits ret = COSC_64BITS_INIT((value >> 32) & 0xffffffff, value & 0xffffffff);
     return ret;
 #else
     return value;
@@ -1112,7 +1114,7 @@ cosc_int64 cosc_64bits_to_int64(
 )
 {
 #ifndef COSC_NOINT64
-    return COSC_PUN(cosc_uint64, cosc_int64, ((cosc_uint64)value.w[0] << 32) | (cosc_uint64)value.w[1]);
+    return COSC_PUN(cosc_uint64, cosc_int64, cosc_64bits_to_uint64(value));
 #else
     return value;
 #endif
@@ -1123,9 +1125,7 @@ struct cosc_64bits cosc_64bits_from_int64(
 )
 {
 #ifndef COSC_NOINT64
-    cosc_uint64 tmp = COSC_PUN(cosc_int64, cosc_uint64, value);
-    struct cosc_64bits ret = COSC_64BITS_INIT((tmp & 0xffffffff00000000ULL) >> 32, tmp & 0xffffffff);
-    return ret;
+    return cosc_64bits_from_uint64(COSC_PUN(cosc_int64, cosc_uint64, value));
 #else
     return value;
 #endif
@@ -1137,10 +1137,7 @@ cosc_float64 cosc_64bits_to_float64(
 {
 #ifndef COSC_NOFLOAT64
 #ifndef COSC_NOINT64
-    cosc_uint64 tmp = COSC_64BITS_GETHI(&value);
-    tmp <<= 32;
-    tmp |= COSC_64BITS_GETLO(&value);
-    return COSC_PUN(cosc_uint64, cosc_float64, tmp);
+    return COSC_PUN(cosc_uint64, cosc_float64, cosc_64bits_to_uint64(value));
 #else
     if (!cosc_feature_big_endian())
     {
@@ -1161,9 +1158,7 @@ struct cosc_64bits cosc_64bits_from_float64(
 {
 #ifndef COSC_NOFLOAT64
 #ifndef COSC_NOINT64
-    cosc_uint64 tmp = COSC_PUN(cosc_float64, cosc_uint64, value);
-    struct cosc_64bits ret = COSC_64BITS_INIT((tmp >> 32) & 0xffffffff, tmp & 0xffffffff);
-    return ret;
+    return cosc_64bits_from_uint64(COSC_PUN(cosc_float64, cosc_uint64, value));
 #else
     struct cosc_64bits ret = COSC_PUN(cosc_float64, struct cosc_64bits, value);
     if (!cosc_feature_big_endian())
@@ -1178,6 +1173,8 @@ struct cosc_64bits cosc_64bits_from_float64(
     return value;
 #endif
 }
+
+#endif /* !COSC_NO64BITSCONV */
 
 cosc_int32 cosc_write_uint32(
     void *buffer,
