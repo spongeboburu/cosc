@@ -31,7 +31,7 @@ static void test_float64_to_float32_static(void **state)
         cosc_float64 input;
         memcpy(&input, d + i, 8);
 #ifdef COSC_NOFLOAT64
-        if (!cosc_feature_big_endian())
+        if (!cosc_big_endian())
         {
             cosc_uint32 tmp = COSC_64BITS_HI(&input);
             COSC_64BITS_HI(&input) = COSC_64BITS_LO(&input);
@@ -53,7 +53,7 @@ static void test_float64_to_float32_range_big(void **state)
         cosc_float64 input;
         memcpy(&input, &value, 8);
 #ifdef COSC_NOFLOAT64
-        if (!cosc_feature_big_endian())
+        if (!cosc_big_endian())
         {
             cosc_uint32 tmp = COSC_64BITS_HI(&input);
             COSC_64BITS_HI(&input) = COSC_64BITS_LO(&input);
@@ -76,7 +76,7 @@ static void test_float64_to_float32_range_small(void **state)
         cosc_float64 input;
         memcpy(&input, &value, 8);
 #ifdef COSC_NOFLOAT64
-        if (!cosc_feature_big_endian())
+        if (!cosc_big_endian())
         {
             cosc_uint32 tmp = COSC_64BITS_HI(&input);
             COSC_64BITS_HI(&input) = COSC_64BITS_LO(&input);
@@ -99,7 +99,7 @@ static void test_float32_to_float64_static(void **state)
         memcpy(&input, f + i, 4);
         cosc_float64 output = cosc_float32_to_float64(input);
 #ifdef COSC_NOFLOAT64
-        if (!cosc_feature_big_endian())
+        if (!cosc_big_endian())
         {
             cosc_uint32 tmp = COSC_64BITS_HI(&output);
             COSC_64BITS_HI(&output) = COSC_64BITS_LO(&output);
@@ -121,7 +121,7 @@ static void test_float32_to_float64_range_big(void **state)
         memcpy(&input, &value, 4);
         cosc_float64 output = cosc_float32_to_float64(input);
 #ifdef COSC_NOFLOAT64
-        if (!cosc_feature_big_endian())
+        if (!cosc_big_endian())
         {
             cosc_uint32 tmp = COSC_64BITS_HI(&output);
             COSC_64BITS_HI(&output) = COSC_64BITS_LO(&output);
@@ -144,7 +144,7 @@ static void test_float32_to_float64_range_small(void **state)
         memcpy(&input, &value, 4);
         cosc_float64 output = cosc_float32_to_float64(input);
 #ifdef COSC_NOFLOAT64
-        if (!cosc_feature_big_endian())
+        if (!cosc_big_endian())
         {
             cosc_uint32 tmp = COSC_64BITS_HI(&output);
             COSC_64BITS_HI(&output) = COSC_64BITS_LO(&output);

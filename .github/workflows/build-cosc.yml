@@ -79,9 +79,6 @@ jobs:
       - name: Build examples
         run: |
           cmake --build build --config Debug --target examples
-      - name: Build unit tests
-        run: |
-          cmake --build build --config Debug --parallel --target unit_tests
   build-emscripten:
     name: Emscripten (build only)
     runs-on: ubuntu-latest

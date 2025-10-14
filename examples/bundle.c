@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     message.values_n = 2;
 
     // Set timestamp at 60.25 seconds.
-    cosc_uint64 timetag = cosc_timetag_from_time(60, 250000000);
+    cosc_uint64 timetag = cosc_time_to_timetag(60, 250000000);
     cosc_int32 size = cosc_write_bundle(buffer, sizeof(buffer), timetag, 0);
     if (size < 0)
     {

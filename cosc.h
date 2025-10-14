@@ -73,6 +73,10 @@
  */
 
 /**
+ * @example serial.c
+ */
+
+/**
  * Used to declare linkage for functions.
  * @def COSC_API
  */
@@ -688,6 +692,12 @@ COSC_API cosc_int32 cosc_feature_pattern(void);
 COSC_API cosc_int32 cosc_feature_timetag(void);
 
 /**
+ * Feature test for float conversion support.
+ * @returns Non-zero if cosc was built with float support.
+ */
+COSC_API cosc_int32 cosc_feature_fltconv(void);
+
+/**
  * Feature test for writer support.
  * @returns Non-zero if cosc was built with writer support.
  */
@@ -705,7 +715,7 @@ COSC_API cosc_int32 cosc_feature_reader(void);
  * @returns Non-zero if big endian was detected when building,
  * otherwise zero.
  */
-COSC_API cosc_int32 cosc_feature_big_endian(void);
+COSC_API cosc_int32 cosc_big_endian(void);
 
 /**
  * Check if an address character is valid.
@@ -914,7 +924,7 @@ COSC_API cosc_uint32 cosc_timetag_to_time(
  * @param nanos The time nanos.
  * @returns The timetag.
  */
-COSC_API cosc_uint64 cosc_timetag_from_time(
+COSC_API cosc_uint64 cosc_time_to_timetag(
     cosc_uint32 seconds,
     cosc_uint32 nanos
 );
@@ -950,7 +960,7 @@ COSC_API cosc_float64 cosc_float32_to_float64(
 );
 
 #endif /* !COSC_NOFLTCONV */
-    
+
 /**
  * Write a 32-bit, big endian unsigned integer.
  * @param[out] buffer If non-NULL store the OSC data here, if NULL

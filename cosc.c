@@ -241,7 +241,7 @@ inline static void cosc_store_float64(
     cosc_store_uint32(buffer, value.w[0]);
     cosc_store_uint32((char *)buffer + 4, value.w[1]);
 #elif defined(COSC_NOINT64)
-    if (!cosc_feature_big_endian())
+    if (!cosc_big_endian())
         COSC_COPY64SWAP(buffer, &value);
     else
         COSC_COPY64(buffer, &value);
@@ -265,7 +265,7 @@ inline static cosc_float64 cosc_load_float64(
     return tmp;
 #elif defined(COSC_NOINT64)
     cosc_float64 tmp;
-    if (!cosc_feature_big_endian())
+    if (!cosc_big_endian())
         COSC_COPY64SWAP(&tmp, buffer);
     else
         COSC_COPY64(&tmp, buffer);
@@ -593,6 +593,15 @@ cosc_int32 cosc_feature_timetag(void)
 #endif
 }
 
+cosc_int32 cosc_feature_fltconv(void)
+{
+#ifdef COSC_NOTIMETAG
+    return 0;
+#else
+    return 1;
+#endif
+}
+
 cosc_int32 cosc_feature_writer(void)
 {
 #ifdef COSC_NOWRITER
@@ -611,7 +620,7 @@ cosc_int32 cosc_feature_reader(void)
 #endif
 }
 
-cosc_int32 cosc_feature_big_endian(void)
+cosc_int32 cosc_big_endian(void)
 {
     const cosc_uint32 u = 1;
     return ((const unsigned char *)&u)[3];
@@ -1059,7 +1068,7 @@ cosc_uint32 cosc_timetag_to_time(
 #endif
 }
 
-cosc_uint64 cosc_timetag_from_time(
+cosc_uint64 cosc_time_to_timetag(
     cosc_uint32 seconds,
     cosc_uint32 nanos
 )
@@ -1096,7 +1105,7 @@ cosc_float32 cosc_float64_to_float32(
     struct cosc_64bits bits = COSC_64BITS_INIT(tmpbits >> 32, tmpbits & 0xffffffff);
 #else
     struct cosc_64bits bits = COSC_PUN(cosc_float64, struct cosc_64bits, value);
-    if (!cosc_feature_big_endian())
+    if (!cosc_big_endian())
     {
         cosc_uint32 tmp = COSC_64BITS_HI(&bits);
         COSC_64BITS_HI(&bits) = COSC_64BITS_LO(&bits);
@@ -1169,7 +1178,7 @@ cosc_float64 cosc_float32_to_float64(
 #if defined(COSC_NOFLOAT64)
     return ret;
 #elif defined(COSC_NOINT64)
-    if (!cosc_feature_big_endian())
+    if (!cosc_big_endian())
     {
         cosc_uint32 tmp = COSC_64BITS_HI(&ret);
         COSC_64BITS_HI(&ret) = COSC_64BITS_LO(&ret);

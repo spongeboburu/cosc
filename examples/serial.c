@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     );
 
     // Timetag to 3.5 seconds.
-    cosc_uint64 timetag = cosc_timetag_from_time(3, 500000000);
+    cosc_uint64 timetag = cosc_time_to_timetag(3, 500000000);
 
     // Start with a bundle (we could start with a message directly too).
     ret = cosc_writer_open_bundle(&writer, timetag);
