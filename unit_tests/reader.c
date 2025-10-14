@@ -112,7 +112,7 @@ static void test_empty_bundle_noprefix(void **state)
 #ifndef COSC_NOINT64
     assert_int_equal(timetag, 0x12345678);
 #else
-    assert_int_equal(COSC_64BITS_GETLO(&timetag), 0x12345678);
+    assert_int_equal(COSC_64BITS_LO(&timetag), 0x12345678);
 #endif
     assert_int_equal(cosc_reader_close(&reader, 1), 0);
     assert_int_equal(cosc_reader_get_size(&reader), 16);

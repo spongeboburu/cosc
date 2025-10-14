@@ -301,8 +301,8 @@ static void test_uint64(void **state)
     assert_int_equal(ret, 8);
     ret = cosc_read_uint64(buffer, sizeof(buffer), &value);
     assert_int_equal(ret, 8);
-    assert_int_equal(COSC_64BITS_GETHI(&value), 0x87654321);
-    assert_int_equal(COSC_64BITS_GETLO(&value), 0x87654321);
+    assert_int_equal(COSC_64BITS_HI(&value), 0x87654321);
+    assert_int_equal(COSC_64BITS_LO(&value), 0x87654321);
 }
 
 static void test_uint64_null(void **state)
@@ -337,8 +337,8 @@ static void test_int64(void **state)
     assert_int_equal(ret, 8);
     ret = cosc_read_int64(buffer, sizeof(buffer), &value);
     assert_int_equal(ret, 8);
-    assert_int_equal(COSC_64BITS_GETHI(&value), 0x12345678);
-    assert_int_equal(COSC_64BITS_GETLO(&value), 0x12345678);
+    assert_int_equal(COSC_64BITS_HI(&value), 0x12345678);
+    assert_int_equal(COSC_64BITS_LO(&value), 0x12345678);
 }
 
 static void test_int64_null(void **state)
@@ -411,8 +411,8 @@ static void test_float64(void **state)
     assert_int_equal(ret, 8);
     ret = cosc_read_float64(buffer, sizeof(buffer), &value);
     assert_int_equal(ret, 8);
-    assert_int_equal(COSC_64BITS_GETHI(&value), 0x1234);
-    assert_int_equal(COSC_64BITS_GETLO(&value), 0x5678);
+    assert_int_equal(COSC_64BITS_HI(&value), 0x1234);
+    assert_int_equal(COSC_64BITS_LO(&value), 0x5678);
 }
 
 static void test_float64_null(void **state)

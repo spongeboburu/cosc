@@ -14,10 +14,10 @@
  * - COSC_NOARRAY to remove the support for arrays.
  * - COSC_NOSTDINT to not include `stdint.h` (or `cstdint` if C++).
  * - COSC_NODUMP to remove the dump functions.
+ * - COSC_NOTIMETAG to remove timetag conversion functions.
+ * - COSC_NOFLTCONV to remove float conversion functions.
  * - COSC_NOWRITER to remove the writer functions.
  * - COSC_NOREADER to remove the reader functions.
- * - COSC_NOTIMETAG to remove timetag functions.
- * - COSC_NO64BITSCONV to remove @ref cosc_64bits conversion functions.
  * - COSC_NOINT64 to typedef `cosc_int64` and `cosc_uint64` as @ref cosc_64bits.
  * - COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
  * - COSC_NOFLOAT64 to typedef `cosc_float64` as @ref cosc_64bits.
@@ -233,35 +233,19 @@ typedef COSC_TYPE_INT32 cosc_int32;
  * @param hi_ The 32 most significant bits.
  * @param lo_ The 32 least significant bits.
  */
-#define COSC_64BITS_SET(bits_, hi_, lo_) do { COSC_64BITS_SETHI(bits_, hi_); COSC_64BITS_SETLO(bits_, lo_); } while (0)
+#define COSC_64BITS_SET(bits_, hi_, lo_) do { COSC_64BITS_HI(bits_) = (hi_); COSC_64BITS_LO(bits_) = (lo_); } while (0)
 
 /**
- * Helper to set the high member of a @ref cosc_64bits struct.
+ * Helper to access the high member of a @ref cosc_64bits struct.
  * @param bits_ A pointer to the @ref cosc_64bits struct.
- * @param hi_ The 32 most significant bits.
  */
-#define COSC_64BITS_SETHI(bits_, hi_) ((bits_)->w[0] = (hi_))
+#define COSC_64BITS_HI(bits_) ((bits_)->w[0])
 
 /**
- * Helper to get the high member of a @ref cosc_64bits struct.
+ * Helper to access the low member of a @ref cosc_64bits struct.
  * @param bits_ A pointer to the @ref cosc_64bits struct.
- * @returns The 32 most significant bits.
  */
-#define COSC_64BITS_GETHI(bits_) ((bits_)->w[0])
-
-/**
- * Helper to set the low member of a @ref cosc_64bits struct.
- * @param bits_ A pointer to the @ref cosc_64bits struct.
- * @param lo_ The 32 least significant bits.
- */
-#define COSC_64BITS_SETLO(bits_, lo_) ((bits_)->w[1] = (lo_))
-
-/**
- * Helper to get the low member of a @ref cosc_64bits struct.
- * @param bits_ A pointer to the @ref cosc_64bits struct.
- * @returns The 32 least significant bits.
- */
-#define COSC_64BITS_GETLO(bits_) ((bits_)->w[1])
+#define COSC_64BITS_LO(bits_) ((bits_)->w[1])
 
 /**
  * Used when 64-bit types are not available.
@@ -937,80 +921,36 @@ COSC_API cosc_uint64 cosc_timetag_from_time(
 
 #endif /* !COSC_NOTIMETAG */
 
-#ifndef COSC_NO64BITSCONV
+#ifndef COSC_NOFLTCONV
 
 /**
- * Helper function to convert a 64-bit struct to an
- * 64-bit unsigned integer.
- * @param value The integer value.
- * @returns A cosc_64bits struct with hi and lo members set.
- * @note If cosc was built with COSC_NOINT64 defined this
- * function will return @p value as is (i.e useless).
+ * Convert a 64-bit float to a 32-bit float.
+ * @param value The 64-bit float.
+ * @returns The 32-bit float.
+ * @note This function is only useful if either or both COSC_NOFLOAT32
+ * and COSC_FLOAT64 were defined when building.
+ * @remark This function is not available if cosc was built
+ * with COSC_NOFLTCONV.
  */
-COSC_API cosc_uint64 cosc_64bits_to_uint64(
-    struct cosc_64bits value
-);
-
-/**
- * Helper function to convert a 64-bit unsigned integer
- * to the cosc_64bits struct.
- * @param value The integer value.
- * @returns A cosc_64bits struct with hi and lo members set.
- * @note If cosc was built with COSC_NOINT64 defined this
- * function will return @p value as is (i.e useless).
- */
-COSC_API struct cosc_64bits cosc_64bits_from_uint64(
-    cosc_uint64 value
-);
-
-/**
- * Helper function to convert a 64-bit struct to a
- * 64-bit signed integer.
- * @param value The integer value.
- * @returns A cosc_64bits struct with hi and lo members set.
- * @note If cosc was built with COSC_NOINT64 defined this
- * function will return @p value as is (i.e useless).
- */
-COSC_API cosc_int64 cosc_64bits_to_int64(
-    struct cosc_64bits value
-);
-
-/**
- * Helper function to convert a 64-bit signed integer
- * to the cosc_64bits struct.
- * @param value The integer value.
- * @returns A cosc_64bits struct with hi and lo members set.
- * @note If cosc was built with COSC_NOINT64 defined this
- * function will return @p value as is (i.e useless).
- */
-COSC_API struct cosc_64bits cosc_64bits_from_int64(
-    cosc_int64 value
-);
-
-/**
- * Helper function to convert a 64-bit struct to a 64-bit float.
- * @param value The integer value.
- * @returns A cosc_64bits struct with hi and lo members set.
- * @note If cosc was built with COSC_NOFLOAT64 defined this
- * function will return @p value as is (i.e useless).
- */
-COSC_API cosc_float64 cosc_64bits_to_float64(
-    struct cosc_64bits value
-);
-
-/**
- * Helper function to convert a float to the cosc_64bits struct.
- * @param value The integer value.
- * @returns A cosc_64bits struct with hi and lo members set.
- * @note If cosc was built with COSC_NOFLOAT64 defined this
- * function will return @p value as is (i.e useless).
- */
-COSC_API struct cosc_64bits cosc_64bits_from_float64(
+COSC_API cosc_float32 cosc_float64_to_float32(
     cosc_float64 value
 );
 
-#endif /* !COSC_NO64BITSCONV */
+/**
+ * Convert a 32-bit float to a 64-bit float.
+ * @param value The 32-bit float.
+ * @returns The 64-bit float.
+ * @note This function is only useful if either or both COSC_NOFLOAT32
+ * and COSC_FLOAT64 were defined when building.
+ * @remark This function is not available if cosc was built
+ * with COSC_NOFLTCONV.
+ */
+COSC_API cosc_float64 cosc_float32_to_float64(
+    cosc_float32 value
+);
 
+#endif /* !COSC_NOFLTCONV */
+    
 /**
  * Write a 32-bit, big endian unsigned integer.
  * @param[out] buffer If non-NULL store the OSC data here, if NULL
