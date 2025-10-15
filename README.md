@@ -98,10 +98,14 @@ first cmake command.
 
 - C99 or C++11 compatible compiler.
 - 32-bit signed and unsigned integer support.
+    - Signed range -2147483648 to 2147483647.
+    - Unsigned max 4294967295.
 
 Optional:
 
 - 64-bit integers.
+    - Signed range -9223372036854775808 to 9223372036854775807.
+    - Unsigned max 18446744073709551615.
 - IEEE 754 single precision (32-bit) float.
 - IEEE 754 double precision (64-bit) float.
 - Standard C library (or standard C++ library).

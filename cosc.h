@@ -214,6 +214,36 @@
 #endif
 
 /**
+ * Maximum value of a signed 32-bit integer.
+ */
+#define COSC_INT32MAX 2147483647
+
+/**
+ * Minimum value of a signed 32-bit integer.
+ */
+#define COSC_INT32MIN -2147483648
+
+/**
+ * Minimum value of an unsigned 32-bit integer.
+ */
+#define COSC_UINT32MAX 4294967295
+
+/**
+ * Maximum value of a signed 64-bit integer.
+ */
+#define COSC_INT64MAX 9223372036854775807LL
+
+/**
+ * Minimum value of a signed 64-bit integer.
+ */
+#define COSC_INT64MIN -9223372036854775808LL
+
+/**
+ * Minimum value of an unsigned 32-bit integer.
+ */
+#define COSC_UINT64MAX 18446744073709551615ULL
+
+/**
  * Unsigned 32-bit integer.
  */
 typedef COSC_TYPE_UINT32 cosc_uint32;
