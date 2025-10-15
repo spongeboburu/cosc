@@ -282,6 +282,46 @@ typedef COSC_TYPE_INT32 cosc_int32;
 #define COSC_64BITS_LO(bits_) ((bits_)->w[1])
 
 /**
+ * Initializer cosc_int64 or cosc_uint64 as zero.
+ * @def COSC_INT64_INIT_ZERO
+ * @param ptr A pointer to the cosc_int64 or cosc_uint64.
+ */
+
+/**
+ * Set cosc_int64 or cosc_uint64 as zero.
+ * @def COSC_INT64_SET_ZERO
+ * @param ptr A pointer to the cosc_int64 or cosc_uint64.
+ */
+
+#ifndef COSC_NOINT64
+#define COSC_INT64_INIT_ZERO 0
+#define COSC_INT64_SET_ZERO(ptr) (*(ptr) = 0)
+#else
+#define COSC_INT64_INIT_ZERO COSC_64BITS_INIT(0, 0)
+#define COSC_INT64_SET_ZERO(ptr) COSC_64BITS_SET(ptr, 0, 0)
+#endif
+
+/**
+ * Initializer cosc_float64 or cosc_ufloat64 as zero.
+ * @def COSC_FLOAT64_INIT_ZERO
+ * @param ptr A pofloater to the cosc_float64 or cosc_ufloat64.
+ */
+
+/**
+ * Set cosc_float64 or cosc_ufloat64 as zero.
+ * @def COSC_FLOAT64_SET_ZERO
+ * @param ptr A pofloater to the cosc_float64 or cosc_ufloat64.
+ */
+
+#ifndef COSC_NOFLOAT64
+#define COSC_FLOAT64_INIT_ZERO 0
+#define COSC_FLOAT64_SET_ZERO(ptr) (*(ptr) = 0)
+#else
+#define COSC_FLOAT64_INIT_ZERO COSC_64BITS_INIT(0, 0)
+#define COSC_FLOAT64_SET_ZERO(ptr) COSC_64BITS_SET(ptr, 0, 0)
+#endif
+
+/**
  * Used when 64-bit types are not available.
  */
 struct cosc_64bits
