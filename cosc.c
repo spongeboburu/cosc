@@ -1924,69 +1924,36 @@ cosc_int32 cosc_write_message(
 
     if (!message)
         message = &tmp_message;
-    if (buffer)
+    sz = cosc_write_signature(
+        buffer ? buffer : 0, buffer ? size - req : 0,
+        message->address, message->address_n,
+        message->typetag, message->typetag_n,
+        use_psize ? 8 : -1
+    );
+    if (sz < 0)
     {
-        sz = cosc_write_signature(
-            buffer, size - req,
-            message->address, message->address_n,
-            message->typetag, message->typetag_n,
-            use_psize ? 8 : -1
-        );
-        if (sz < 0)
-        {
-            if (value_count) *value_count = 0;
-            return sz;
-        }
-        if (sz > COSC_SIZE_MAX - req)
-        {
-            if (value_count) *value_count = 0;
-            return COSC_SIZE_MAX;
-        }
-        req += sz;
-        sz = cosc_write_values(
-            (unsigned char *)buffer + req, size - req,
-            message->typetag, message->typetag_n,
-            message->values.write, message->values_n,
-            value_count
-        );
-        if (sz < 0)
-            return sz;
-        if (sz > COSC_SIZE_MAX - req)
-            return COSC_SIZE_MAX;
-        req += sz;
+        if (value_count) *value_count = 0;
+        return sz;
+    }
+    if (sz > COSC_SIZE_MAX - req)
+    {
+        if (value_count) *value_count = 0;
+        return COSC_SIZE_MAX;
+    }
+    req += sz;
+    sz = cosc_write_values(
+        (unsigned char *)buffer + req, size - req,
+        message->typetag, message->typetag_n,
+        message->values.write, message->values_n,
+        value_count
+    );
+    if (sz < 0)
+        return sz;
+    if (sz > COSC_SIZE_MAX - req)
+        return COSC_SIZE_MAX;
+    req += sz;
+    if (use_psize)
         cosc_write_int32(buffer, 4, req - 4);
-    }
-    else
-    {
-        sz = cosc_write_signature(
-            0, 0,
-            message->address, message->address_n,
-            message->typetag, message->typetag_n,
-            use_psize ? 8 : -1
-        );
-        if (sz < 0)
-        {
-            if (value_count) *value_count = 0;
-            return sz;
-        }
-        if (sz > COSC_SIZE_MAX - req)
-        {
-            if (value_count) *value_count = 0;
-            return COSC_SIZE_MAX;
-        }
-        req += sz;
-        sz = cosc_write_values(
-            0, 0,
-            message->typetag, message->typetag_n,
-            message->values.write, message->values_n,
-            value_count
-        );
-        if (sz < 0)
-            return sz;
-        if (sz > COSC_SIZE_MAX - req)
-            return COSC_SIZE_MAX;
-        req += sz;
-    }
     return req;
 }
 
