@@ -221,7 +221,7 @@
 /**
  * Minimum value of a signed 32-bit integer.
  */
-#define COSC_INT32MIN -2147483648
+#define COSC_INT32MIN ((-2147483647)-1)
 
 /**
  * Minimum value of an unsigned 32-bit integer.
@@ -236,7 +236,7 @@
 /**
  * Minimum value of a signed 64-bit integer.
  */
-#define COSC_INT64MIN -9223372036854775808LL
+#define COSC_INT64MIN ((-9223372036854775807LL)-1)
 
 /**
  * Minimum value of an unsigned 32-bit integer.
