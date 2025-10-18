@@ -65,7 +65,8 @@ static void test_without_array(void **state)
         buffer, sizeof(buffer),
         WRITE_TYPETAG, WRITE_TYPETAG_LEN,
         read_values, sizeof(WRITE_VALUES) / sizeof(*WRITE_VALUES),
-        &value_count
+        &value_count,
+        true
     );
     assert_int_equal(ret, 92);
     assert_int_equal(value_count, 11);
@@ -94,7 +95,8 @@ static void test_with_array(void **state)
         buffer, sizeof(buffer),
         ",i[fff]", 1024,
         read_values, 31,
-        &value_count
+        &value_count,
+        true
     );
     assert_int_equal(ret, 4 + 12 * 10);
     assert_int_equal(value_count, 31);

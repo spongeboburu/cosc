@@ -33,7 +33,7 @@ static void test_signature(void **state)
         buffer, sizeof(buffer),
         WRITE_MESSAGE.address, WRITE_MESSAGE.address_n,
         WRITE_MESSAGE.typetag, WRITE_MESSAGE.typetag_n,
-        -1
+        0
     );
     assert_int_equal(ret, 28);
     ret = cosc_read_signature(
@@ -58,7 +58,7 @@ static void test_signature_null(void **state)
         NULL, 0,
         WRITE_MESSAGE.address, WRITE_MESSAGE.address_n,
         WRITE_MESSAGE.typetag, WRITE_MESSAGE.typetag_n,
-        -1
+        0
     );
     assert_int_equal(ret, 28);
     ret = cosc_read_signature(
@@ -78,14 +78,14 @@ static void test_signature_overrun(void **state)
         buffer, sizeof(buffer),
         WRITE_MESSAGE.address, WRITE_MESSAGE.address_n,
         WRITE_MESSAGE.typetag, WRITE_MESSAGE.typetag_n,
-        -1
+        0
     );
     assert_int_equal(ret, 28);
     ret = cosc_write_signature(
         buffer, 27,
         WRITE_MESSAGE.address, WRITE_MESSAGE.address_n,
         WRITE_MESSAGE.typetag, WRITE_MESSAGE.typetag_n,
-        -1
+        0
     );
     assert_int_equal(ret, COSC_EOVERRUN);
     ret = cosc_read_signature(
@@ -105,7 +105,7 @@ static void test_signature_psize(void **state)
         buffer, sizeof(buffer),
         WRITE_MESSAGE.address, WRITE_MESSAGE.address_n,
         WRITE_MESSAGE.typetag, WRITE_MESSAGE.typetag_n,
-        28
+        -1
     );
     assert_int_equal(ret, 32);
     ret = cosc_read_signature(
@@ -133,7 +133,7 @@ static void test_signature_invalid_psize(void **state)
         buffer, sizeof(buffer),
         WRITE_MESSAGE.address, WRITE_MESSAGE.address_n,
         WRITE_MESSAGE.typetag, WRITE_MESSAGE.typetag_n,
-        28
+        -1
     );
     assert_int_equal(ret, 32);
     ret = cosc_write_signature(

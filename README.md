@@ -1,5 +1,7 @@
 # cosc, OSC library for C99 or C++11.
 
+NOTE! "main" branch API is not stable.
+
 What is this about? OSC stands for Open Sound Control and is a formalized way
 of reading/writing data, see <https://opensoundcontrol.stanford.edu/spec-1_0.html>.
 

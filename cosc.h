@@ -391,17 +391,10 @@ typedef COSC_TYPE_FLOAT64 cosc_float64;
 #define COSC_LEVEL_TYPE_BLOB 'b'
 
 /**
- * A flag indicating that all bundles and messages
- * should have a 32-bit size integer packet size prefix.
- * @note If this flag is not used the first bundle or message
- * in the buffer will have no size prefix.
+ * Tell the serial that the first bundle or message
+ * is prefixed with a packet size.
  */
 #define COSC_SERIAL_PSIZE 1
-
-/**
- * A flag indicating that the serial is owned by a reader.
- */
-#define COSC_SERIAL_READ 0x80
 
 /**
  * Buffer overrun.
@@ -591,7 +584,21 @@ struct cosc_message
 };
 
 /**
- * Used to manage the levels of a serializer.
+ * Macro to check if a serial is a writer.
+ * @param serial_ A pointer to the serial.
+ * @returns True or false.
+ */
+#define COSC_SERIAL_ISWRITER(serial_) ((serial_)->wbuffer != 0)
+
+/**
+ * Macro to check if a serial is a reader.
+ * @param serial_ A pointer to the serial.
+ * @returns True or false.
+ */
+#define COSC_SERIAL_ISREADER(serial_) ((serial_)->rbuffer != 0)
+
+/**
+ * Used to manage the levels of a serial.
  */
 struct cosc_level
 {
@@ -607,22 +614,21 @@ struct cosc_level
     cosc_int32 start;
 
     /**
-     * The level byte size.
-     * @note When writing this starts at zero and increase when something
-     * is written to the level, but when reading this is the packet size.
+     * The level max size.
+     * @note When writing this is the buffer size - start,
+     * when reading this is either buffer size - start or
+     * the packet size.
+     */
+    cosc_int32 size_max;
+
+    /**
+     * The number of written or read bytes.
      */
     cosc_int32 size;
 
     /**
-     * The packet size, will always be 0 when reading or -1 if psize
-     * is note used at all.
-     */
-    cosc_int32 psize;
-
-    /**
-     * The buffer byte offset of the typetag start (from the beginning
-     * of the buffer).
-     * @note Only applicable if type is message.
+     * The buffer byte offset of the typetag start.
+     * @note Only used if type is message.
      */
     cosc_int32 ttstart;
 
@@ -634,33 +640,33 @@ struct cosc_level
     cosc_int32 ttend;
 
     /**
-     * The current position in the typetag.
-     * @note Only applicable if type is message.
+     * The current index in the typetag.
+     * @note Only used if type is message.
      */
     cosc_int32 ttindex;
 
 };
 
 /**
- * Common members for both writers and readers.
+ * A serial.
  */
 struct cosc_serial
 {
 
     /**
+     * Write buffer, NULL if reading.
+     */
+    unsigned char *wbuffer;
+
+    /**
+     * Read buffer, NULL if writing.
+     */
+    const unsigned char *rbuffer;
+
+    /**
      * Maximum number of bytes the buffer has available.
      */
     cosc_int32 buffer_size;
-
-    /**
-     * The number of written or read bytes.
-     */
-    cosc_int32 size;
-
-    /**
-     * Flags to control operations.
-     */
-    cosc_uint32 flags;
 
     /**
      * A pointer to an array of levels.
@@ -677,41 +683,15 @@ struct cosc_serial
      */
     cosc_int32 level;
 
-};
-
-/**
- * Used to serialize OSC.
- */
-struct cosc_writer
-{
+    /**
+     * The number of written/read bytes, not including levels not yet ended.
+     */
+    cosc_int32 size;
 
     /**
-     * Base serializer.
+     * Serial flags.
      */
-    struct cosc_serial serial;
-
-    /**
-     * Buffer data.
-     */
-    unsigned char *buffer;
-
-};
-
-/**
- * Used to deserialize OSC.
- */
-struct cosc_reader
-{
-
-    /**
-     * Base serializer.
-     */
-    struct cosc_serial serial;
-
-    /**
-     * Buffer data.
-     */
-    const unsigned char *buffer;
+    cosc_uint32 flags;
 
 };
 
@@ -1455,9 +1435,9 @@ COSC_API cosc_int32 cosc_read_midi(
  * then no bytes are stored.
  * @param size Store at most this many bytes to @p buffer.
  * @param timetag The timetag of the bundle.
- * @param psize If >= 0 write a signed 32-bit integer at the start describing
- * the byte size of the message or a negative value if there is no
- * packet size descriptor prefix.
+ * @param psize 0 for no packet size integer, < 0 to write a packet
+ * size integer based on the signature data or > 0 to set the
+ * packet size to a specific value.
  * @returns The number of written bytes if @p buffer is non-NULL,
  * the required size if @p buffer is NULL or a negative error code
  * if the operation fails.
@@ -1468,6 +1448,7 @@ COSC_API cosc_int32 cosc_read_midi(
  *
  * - @ref COSC_EOVERRUN if @p buffer is non-NULL and @p size is too small.
  * - @ref COSC_ESIZEMAX if @p psize + the bundle data exceeds @ref COSC_SIZE_MAX.
+ * - @ref COSC_EPSIZE if @p size > 0 and is invalid or too small.
  */
 COSC_API cosc_int32 cosc_write_bundle(
     void *buffer,
@@ -1512,9 +1493,9 @@ COSC_API cosc_int32 cosc_read_bundle(
  * @param address_n Read at most this many bytes from @p address.
  * @param typetag The typetag.
  * @param typetag_n Read at most this many bytes from @p typetag.
- * @param psize If >= 0 write a signed 32-bit integer at the start describing
- * the byte size of the message or a negative value if there is no
- * size descriptor prefix.
+ * @param psize 0 for no packet size integer, < 0 to write a packet
+ * size integer based on the signature data or > 0 to set the
+ * packet size to a specific value.
  * @returns The number of written bytes if @p buffer is non-NULL,
  * the required size if @p buffer is NULL or a negative error code
  * if the operation fails.
@@ -1526,6 +1507,7 @@ COSC_API cosc_int32 cosc_read_bundle(
  *
  * - @ref COSC_EOVERRUN if @p buffer is non-NULL and @p size is too small.
  * - @ref COSC_ESIZEMAX if the size exceeds @ref COSC_SIZE_MAX.
+ * - @ref COSC_EPSIZE if @p size > 0 and is invalid or too small.
  */
 COSC_API cosc_int32 cosc_write_signature(
     void *buffer,
@@ -1623,8 +1605,8 @@ COSC_API cosc_int32 cosc_read_value(
  * @param[out] buffer If non-NULL store the OSC data here, if NULL
  * then no bytes are stored.
  * @param size Store at most this many bytes to @p buffer.
- * @param typetag The typetag.
- * @param typetag_n Read at most this many bytes from @p typetag.
+ * @param types The types, the starting comma may be omitted.
+ * @param types_n Read at most this many bytes from @p types.
  * @param values The values.
  * @param values_n Read at most this many members from @p values.
  * @param[out] value_count If non-NULL the number of written values is
@@ -1637,13 +1619,13 @@ COSC_API cosc_int32 cosc_read_value(
  *
  * - @ref COSC_EOVERRUN if @p buffer is non-NULL and @p size is too small.
  * - @ref COSC_ESIZEMAX if @p size > @ref COSC_SIZE_MAX.
- * - @ref COSC_ETYPE if @p typetag is invalid.
+ * - @ref COSC_ETYPE if on of the @p types is invalid.
  */
 COSC_API cosc_int32 cosc_write_values(
     void *buffer,
     cosc_int32 size,
-    const char *typetag,
-    cosc_int32 typetag_n,
+    const char *types,
+    cosc_int32 types_n,
     const union cosc_value *values,
     cosc_int32 values_n,
     cosc_int32 *value_count
@@ -1653,16 +1635,21 @@ COSC_API cosc_int32 cosc_write_values(
  * Read OSC values.
  * @param buffer Read bytes from this buffer.
  * @param size Read at most this many bytes from @p buffer.
- * @param typetag The typetag.
- * @param typetag_n Read at most this many bytes from @p typetag.
+ * @param types The types, the starting comma may be omitted.
+ * @param types_n Read at most this many bytes from @p types.
  * @param[out] values If non-NULL store the read values here.
  * @param values_n Store at most this many members to @p values.
  * @param[out] value_count If non-NULL the number of read values is
  * stored here.
+ * @param exit_early If non-zero and the @p types have an array specified
+ * the function will stop reading more array members and exit early even
+ * if there are more bytes left in @p buffer.
  * @returns The number of read bytes or a negative error code if the
  * operation fails.
- * @note If @p values_n is less than the values specified by @p typetag
+ * @note If @p values_n is less than the values specified by @p types
  * the remaining values are discarded.
+ * @note The value of @p exit_early has no effect if COSC_NOARRAY was
+ * defined when building.
  *
  * - @ref COSC_EOVERRUN if @p size is too small.
  * - @ref COSC_ESIZEMAX if @p size > @ref COSC_SIZE_MAX.
@@ -1671,11 +1658,12 @@ COSC_API cosc_int32 cosc_write_values(
 COSC_API cosc_int32 cosc_read_values(
     const void *buffer,
     cosc_int32 size,
-    const char *typetag,
-    cosc_int32 typetag_n,
+    const char *types,
+    cosc_int32 types_n,
     union cosc_value *values,
     cosc_int32 values_n,
-    cosc_int32 *value_count
+    cosc_int32 *value_count,
+    cosc_int32 exit_early
 );
 
 /**
@@ -1684,24 +1672,28 @@ COSC_API cosc_int32 cosc_read_values(
  * then no bytes are stored.
  * @param size Store at most this many bytes to @p buffer.
  * @param message The message or NULL for an empty message.
- * @param use_psize Non-zero to add a 32-bit packet size integer before
- * the actual message.
+ * @param psize 0 for no packet size integer, < 0 to write a packet
+ * size integer based on the signature data or > 0 to set the
+ * packet size to a specific value.
  * @param[out] value_count If non-NULL the number of written values is
  * stored here.
  * @returns The number of written bytes if @p buffer is non-NULL,
  * the required size if @p buffer is NULL or a negative error code
  * if the operation fails.
  * @note The message address is NOT validated.
+ * @note If message.values_n is less than the values specified
+ * in message.typetag the rest of the values will be written as zero/empty.
  *
  * - @ref COSC_EOVERRUN if @p buffer is non-NULL and @p size is too small.
  * - @ref COSC_ESIZEMAX if @p size > @ref COSC_SIZE_MAX.
  * - @ref COSC_ETYPE if message typetag is invalid.
+ * - @ref COSC_EPSIZE if @p size > 0 and is invalid or too small.
  */
 COSC_API cosc_int32 cosc_write_message(
     void *buffer,
     cosc_int32 size,
     const struct cosc_message *message,
-    cosc_int32 use_psize,
+    cosc_int32 psize,
     cosc_int32 *value_count
 );
 
@@ -1716,9 +1708,16 @@ COSC_API cosc_int32 cosc_write_message(
  * size integer at the start of the buffer.
  * @param[out] value_count If non-NULL the number of read values is
  * stored here.
+ * @param exit_early If non-zero and the @p types have an array specified
+ * the function will stop reading more array members and exit early even
+ * if there are more bytes left in @p buffer.
  * @returns The number of read bytes or a negative error code if the
  * operation fails.
  * @note The message address is NOT validated.
+ * @note If message.values_n is less than the values specified
+ * in message.typetag the rest of the values will be read and discarded.
+ * @note The value of @p exit_early has no effect if COSC_NOARRAY was
+ * defined when building.
  *
  * - @ref COSC_EOVERRUN if @p size is too small.
  * - @ref COSC_ESIZEMAX if @p size > @ref COSC_SIZE_MAX.
@@ -1730,7 +1729,8 @@ COSC_API cosc_int32 cosc_read_message(
     cosc_int32 size,
     struct cosc_message *message,
     cosc_int32 *psize,
-    cosc_int32 *value_count
+    cosc_int32 *value_count,
+    cosc_int32 exit_early
 );
 
 #if !defined(COSC_NOSTDLIB) && !defined(COSC_NODUMP)
@@ -1773,31 +1773,71 @@ COSC_API cosc_int32 cosc_message_dump(
 
 #endif /* !COSC_NOSTDLIB && !COSC_NODUMP */
 
-#if !defined(COSC_NOWRITER) && !defined(COSC_NOREADER)
+#if !defined(COSC_NOWRITER) || !defined(COSC_NOREADER)
 
-// FIXME: maybe not have functions directly for serial.
+/**
+ * The maximum number of bytes that can be written/read to/from the buffer.
+ * @param serial The serial.
+ * @returns The maximum number of bytes to write/read.
+ * @remark This function is not available if both COSC_NOWRITER
+ * and COSC_NOREADER were defined when compiling.
+ */
+COSC_API cosc_int32 cosc_serial_get_buffer_size(
+    const struct cosc_serial *serial
+);
+
+/**
+ * Get the number of written or read bytes.
+ * @param serial The serial.
+ * @returns The number of written/read bytes.
+ * @remark This function is not available if both COSC_NOWRITER
+ * and COSC_NOREADER were defined when compiling.
+ */
+COSC_API cosc_int32 cosc_serial_get_size(
+    const struct cosc_serial *serial
+);
+
+/**
+ * Get the current typetag type of a message level.
+ * @param serial The serial.
+ * @returns The current message typetag type, @ref COSC_ELEVELTYPE
+ * if the current leve is not a message or 0 if the typetag has
+ * reached it's end.
+ * @remark This function is not available if both COSC_NOWRITER
+ * and COSC_NOREADER were defined when compiling.
+ */
+COSC_API cosc_int32 cosc_serial_get_msgtype(
+    const struct cosc_serial *serial
+);
+
+/**
+ * Reset serial.
+ * @param serial The serial.
+ */
+COSC_API void cosc_serial_reset(
+    struct cosc_serial *serial
+);
 
 #endif /* !COSC_NOWRITER && !COSC_NOREADER */
 
 #ifndef COSC_NOWRITER
 
 /**
- * Helper to setup a writer.
- * @param[out] writer The writer struct to initialize.
- * @param buffer The buffer bytes will be written to, must not
- * be NULL.
- * @param buffer_size Store at most this many bytes to @p buffer.
- * @param levels A pointer to an array with at least one member.
- * @param level_max The maximum number of levels, will be implicitly
- * clamped to a minimum value of 1.
- * @param flags Flags to control the behavior of the writer,
- * see the COSC_SERIAL_* macros.
- * @note @ref COSC_SERIAL_READ is implicitly removed from @p flags.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * Setup a serial for writing.
+ * @param[out] serial The serial.
+ * @param buffer A writable buffer, must not be NULL.
+ * @param buffer_size The size of the buffer.
+ * @param levels Provided levels, must point to an array
+ * of levels with at least one member.
+ * @param level_max The number of provided levels, must
+ * be at least 1.
+ * @param flags Serial flags, see COSC_SERIAL_* macros.
+ * @see @ref COSC_SERIAL_PSIZE.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
  */
 COSC_API void cosc_writer_setup(
-    struct cosc_writer *writer,
+    struct cosc_serial *serial,
     void *buffer,
     cosc_int32 buffer_size,
     struct cosc_level *levels,
@@ -1806,158 +1846,64 @@ COSC_API void cosc_writer_setup(
 );
 
 /**
- * Reset the writer levels and sizes, making it available for
- * completely new OSC data.
- * @param writer The writer.
- * @remark This function is not available if both COSC_NOWRITER was
- * defined when compiling.
+ * Start a new bundle level.
+ * @param serial The serial.
+ * @param timetag A timetag for the bundle.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELMAX the maximum number of levels is reached.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept a bundle.
  */
-COSC_API void cosc_writer_reset(
-    struct cosc_writer *writer
-);
-
-/**
- * Get the size of the buffer used by the writer.
- * @param writer The writer.
- * @returns The buffer size in bytes.
- * @remark This function is not available if both COSC_NOWRITER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_writer_get_buffer_size(
-    const struct cosc_writer *writer
-);
-
-/**
- * Get the number of written bytes including any open bundles,
- * messages and blobs.
- * @param writer The writer.
- * @returns The written/read byte size.
- * @remark This function is not available if both COSC_NOWRITER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_writer_get_size(
-    const struct cosc_writer *writer
-);
-
-/**
- * Get the maximum number of levels the writer has.
- * @param writer The writer.
- * @returns The maximum number of levels the writer has.
- * @remark This function is not available if both COSC_NOWRITER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_writer_get_level_max(
-    const struct cosc_writer *writer
-);
-
-/**
- * Get the number of open levels of the writer.
- * @param writer The writer.
- * @returns The current level of the writer, will be 0
- * if no level has been started.
- * @remark This function is not available if both COSC_NOWRITER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_writer_get_level(
-    const struct cosc_writer *writer
-);
-
-/**
- * Get the byte size of the current level of the writer.
- * @param writer The writer.
- * @returns The byte size of the current level of the writer, will be 0
- * if no level has been started.
- * @remark This function is not available if both COSC_NOWRITER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_writer_get_level_size(
-    const struct cosc_writer *writer
-);
-
-/**
- * Get the type of the current level of the writer.
- * @param writer The writer.
- * @returns The type of the current level of the writer, will be 0
- * if no level has been started.
- * @see @ref COSC_LEVEL_TYPE_BUNDLE, @ref COSC_LEVEL_TYPE_MESSAGE
- * and @ref COSC_LEVEL_TYPE_BLOB.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
- */
-COSC_API cosc_int32 cosc_writer_get_level_type(
-    const struct cosc_writer *writer
-);
-
-/**
- * Get the message typetag type of the current level of the writer.
- * @param writer The writer.
- * @returns The type of the current level of the writer, will be 0
- * if no level has been started or if the current level is not a message.
- * @note If this function returns 0 it means the message typetag
- * has ended and there are no more types left.
- * @remark This function is not available if both COSC_NOWRITER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_writer_get_level_msgtype(
-    const struct cosc_writer *writer
-);
-
-/**
- * Get the buffer used by the writer.
- * @param writer The writer.
- * @returns A pointer to the start of the buffer.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
- */
-COSC_API void *cosc_writer_get_buffer(
-    const struct cosc_writer *writer
-);
-
-/**
- * Set the buffer used by the writer.
- * @param writer The writer.
- * @param buffer The new buffer.
- * @param size The size of the new buffer.
- * @returns 0 on success or @ref COSC_EINVAL if the new
- * buffer size is maller than the current one.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
- */
-COSC_API cosc_int32 cosc_writer_set_buffer(
-    struct cosc_writer *writer,
-    void *buffer,
-    cosc_int32 size
-);
-
-/**
- * Open a new bundle and add a level.
- * @param writer The writer.
- * @param timetag The timetag.
- * @returns The number of bytes added to the new level on success
- * or a negative error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
- */
-COSC_API cosc_int32 cosc_writer_open_bundle(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_start_bundle(
+    struct cosc_serial *serial,
     cosc_uint64 timetag
 );
 
 /**
- * Open a new message and add a level.
- * @param writer The writer.
+ * End a bundle level.
+ * @param serial The serial.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_ELEVELTYPE if the current level is not a bundle.
+ */
+COSC_API cosc_int32 cosc_writer_end_bundle(
+    struct cosc_serial *serial
+);
+
+/**
+ * Start a new message level.
+ * @param serial The serial.
  * @param address The address.
  * @param address_n Read at most this many bytes from @p address.
  * @param typetag The typetag.
  * @param typetag_n Read at most this many bytes from @p typetag.
- * @returns The number of bytes added to the new level on success
- * or a negative error code on failure.
- * @note The message address is NOT validated.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELMAX the maximum number of levels is reached.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept a message.
  */
-COSC_API cosc_int32 cosc_writer_open_message(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_start_message(
+    struct cosc_serial *serial,
     const char *address,
     cosc_int32 address_n,
     const char *typetag,
@@ -1965,263 +1911,412 @@ COSC_API cosc_int32 cosc_writer_open_message(
 );
 
 /**
- * Open a new blob and add a level.
- * @param writer The writer.
- * @returns The number of bytes added to the new level on success
- * or a negative error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * End a message level.
+ * @param serial The serial.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_ELEVELTYPE if the current level is not a message.
  */
-COSC_API cosc_int32 cosc_writer_open_blob(
-    struct cosc_writer *writer
+COSC_API cosc_int32 cosc_writer_end_message(
+    struct cosc_serial *serial
 );
 
 /**
- * Close one or more levels of open bundles, messages and blobs.
- * @param writer The writer.
- * @param levels The number of levels to close or a negative value
- * to close all open levels.
- * @returns The number of bytes added to the buffer on success
- * or a negative error code on failure.
- * @note If any open levels are messages any remaining message members
- * will be written as empty/zeroed before the message closes.
- * @note If any open levels are blobs it will get padded before closed.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * Start a new blob level.
+ * @param serial The serial.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ * @note To write raw bytes to a started blob level use
+ * cosc_writer_bytes().
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELMAX the maximum number of levels is reached.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept a blob.
  */
-COSC_API cosc_int32 cosc_writer_close(
-    struct cosc_writer *writer,
-    cosc_int32 levels
+COSC_API cosc_int32 cosc_writer_start_blob(
+    struct cosc_serial *serial
 );
 
 /**
- * Write an unsigned 32-bit integer to a message and on success
- * proceed to the next member of the message typetag.
- * @param writer The writer.
+ * End a blob level.
+ * @param serial The serial.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer, this
+ *   can happen if the blob needs to add pad bytes.
+ * - @ref COSC_ELEVELTYPE if the current level is not a blob.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
+ */
+COSC_API cosc_int32 cosc_writer_end_blob(
+    struct cosc_serial *serial
+);
+
+/**
+ * Write an unsigned 32-bit integer.
+ * @param serial The serial.
  * @param value The value.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_uint32(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_uint32(
+    struct cosc_serial *serial,
     cosc_uint32 value
 );
 
 /**
- * Write a signed 32-bit integer to a message and on success
- * proceed to the next member of the message typetag.
- * @param writer The writer.
+ * Write a signed 32-bit integer.
+ * @param serial The serial.
  * @param value The value.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_int32(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_int32(
+    struct cosc_serial *serial,
     cosc_int32 value
 );
 
 /**
- * Write a 32-bit float to a message and on success
- * proceed to the next member of the message typetag.
- * @param writer The writer.
+ * Write a 32-bit float.
+ * @param serial The serial.
  * @param value The value.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_float32(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_float32(
+    struct cosc_serial *serial,
     cosc_float32 value
 );
 
 /**
- * Write an unsigned 64-bit integer to a message and on success
- * proceed to the next member of the message typetag.
- * @param writer The writer.
+ * Write an unsigned 64-bit integer.
+ * @param serial The serial.
  * @param value The value.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_uint64(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_uint64(
+    struct cosc_serial *serial,
     cosc_uint64 value
 );
 
 /**
- * Write a signed 64-bit integer to a message and on success
- * proceed to the next member of the message typetag.
- * @param writer The writer.
+ * Write a signed 64-bit integer.
+ * @param serial The serial.
  * @param value The value.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_int64(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_int64(
+    struct cosc_serial *serial,
     cosc_int64 value
 );
 
 /**
- * Write a 64-bit float to a message and on success
- * proceed to the next member of the message typetag.
- * @param writer The writer.
+ * Write a 64-bit float.
+ * @param serial The serial.
  * @param value The value.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_float64(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_float64(
+    struct cosc_serial *serial,
     cosc_float64 value
 );
 
 /**
- * Write a string to a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param writer The writer.
+ * Write a string.
+ * @param serial The serial.
  * @param value The value.
  * @param value_n Read at most this many bytes from @p value.
  * @param[out] length If non-NULL and the function does not return
- * a negative error code the length of the string, excluding the
- * zero terminator, is stored here.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * a negative error code the length, excluding the zero terminator,
+ * of the string is stored here.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_string(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_string(
+    struct cosc_serial *serial,
     const char *value,
     cosc_int32 value_n,
     cosc_int32 *length
 );
 
 /**
- * Write a blob to a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param writer The writer.
- * @param value The value or NULL to zero the blob data.
- * @param value_size The size of the blob.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * Write a blob.
+ * @param serial The serial.
+ * @param value The blob data.
+ * @param value_n The byte size of the blob data.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @note To write raw bytes to a started blob level use
+ * cosc_writer_bytes().
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_blob(
-    struct cosc_writer *writer,
-    const void *value,
-    cosc_int32 value_size
-);
-
-/**
- * Write an ASCII character to a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param writer The writer.
- * @param value The value.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
- */
-cosc_int32 cosc_writer_char(
-    struct cosc_writer *writer,
-    cosc_int32 value
-);
-
-/**
- * Write a MIDI message to a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param writer The writer.
- * @param value The value or NULL to zero the MIDI message.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
- */
-cosc_int32 cosc_writer_midi(
-    struct cosc_writer *writer,
-    const unsigned char value[4]
-);
-
-/**
- * Write bytes to a message blob member and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param writer The writer.
- * @param value The bytes or NULL to zero the bytes.
- * @param value_n The number of bytes to write.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
- */
-cosc_int32 cosc_writer_bytes(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_blob(
+    struct cosc_serial *serial,
     const void *value,
     cosc_int32 value_n
 );
 
 /**
- * Write a value to a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param writer The writer.
- * @param type The value type.
- * @param value The value or NULL to zero the value.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * Write an ASCII character.
+ * @param serial The serial.
+ * @param value The value.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_writer_value(
-    struct cosc_writer *writer,
+COSC_API cosc_int32 cosc_writer_char(
+    struct cosc_serial *serial,
+    cosc_int32 value
+);
+
+/**
+ * Write a MIDI message.
+ * @param serial The serial.
+ * @param value The value or NULL for all zeroes.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @note Normally the fourth byte isn't used in MIDI.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
+ */
+COSC_API cosc_int32 cosc_writer_midi(
+    struct cosc_serial *serial,
+    const unsigned char value[4]
+);
+
+/**
+ * Write a value.
+ * @param serial The serial.
+ * @param type The value typetag type.
+ * @param value The value or NULL for zero/empty.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @note Normally the fourth byte isn't used in MIDI.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
+ * - @ref COSC_ETYPE if @p type is invalid.
+ */
+COSC_API cosc_int32 cosc_writer_value(
+    struct cosc_serial *serial,
     cosc_int32 type,
     const union cosc_value *value
 );
 
 /**
- * Write an OSC message to the writer.
- * @param writer The writer.
+ * Write an OSC message.
+ * @param[out] buffer If non-NULL store the OSC data here, if NULL
+ * then no bytes are stored.
+ * @param size Store at most this many bytes to @p buffer.
  * @param message The message or NULL for an empty message.
  * @param[out] value_count If non-NULL the number of written values is
  * stored here.
- * @return The number of written bytes on success or a negative
- * error code on failure.
+ * @returns The number of written bytes if @p buffer is non-NULL,
+ * the required size if @p buffer is NULL or a negative error code
+ * if the operation fails.
  * @note The message address is NOT validated.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * @note If message.values_n is less than the values specified
+ * in message.typetag the rest of the values will be written as zero/empty.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * - @ref COSC_EOVERRUN if @p buffer is non-NULL and @p size is too small.
+ * - @ref COSC_ESIZEMAX if @p size > @ref COSC_SIZE_MAX.
+ * - @ref COSC_ETYPE if message typetag is invalid.
+ * - @ref COSC_EPSIZE if @p size > 0 and is invalid or too small.
  */
 COSC_API cosc_int32 cosc_writer_message(
-    struct cosc_writer *writer,
+    struct cosc_serial *serial,
     const struct cosc_message *message,
     cosc_int32 *value_count
 );
 
 /**
- * Write an empty value to a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param writer The writer.
- * @return The number of written bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOWRITER was defined
- * when compiling.
+ * Write bytes to a started blob level.
+ * @param serial The serial.
+ * @param value The bytes or NULL to zero the bytes.
+ * @param value_n The number of bytes to write.
+ * @returns The number of written bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
  */
-cosc_int32 cosc_writer_skip(
-    struct cosc_writer *writer
+COSC_API cosc_int32 cosc_writer_bytes(
+    struct cosc_serial *serial,
+    const void *value,
+    cosc_int32 value_n
+);
+
+/**
+ * Skip a value, if the value has payload it will be zeroes.
+ * @param serial The serial.
+ * @returns The number of written bytes or a negative error
+ * code on failure or 0 if there are no more types in the
+ * message typetag.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
+ */
+COSC_API cosc_int32 cosc_writer_skip(
+    struct cosc_serial *serial
+);
+
+/**
+ * Repeat typetag from the beginning of an array start, where the array
+ * starts with a '['.
+ * @param serial The serial.
+ * @returns 0 on success or a negative error code on failure.
+ * @note If cosc was built with COSC_NOARRAY defined this function does
+ * nothing and returns 0 or @ref COSC_EINVAL.
+ * @remark This function is not available if COSC_NOWRITER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a reader.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE the current message typetag type is not ']' or
+ *   if the typetag has no valid array start.
+ */
+COSC_API cosc_int32 cosc_writer_repeat(
+    struct cosc_serial *serial
 );
 
 #endif /* !COSC_NOWRITER */
@@ -2229,22 +2324,21 @@ cosc_int32 cosc_writer_skip(
 #ifndef COSC_NOREADER
 
 /**
- * Helper to setup a reader.
- * @param[out] reader The reader struct to initialize.
- * @param buffer The buffer bytes will be read from, must not
- * be NULL.
- * @param buffer_size Store at most this many bytes to @p buffer.
- * @param levels A pointer to an array with at least one member.
- * @param level_max The maximum number of levels, will be implicitly
- * clamped to a minimum value of 1.
- * @param flags Flags to control the behavior of the reader,
- * see the COSC_SERIAL_* macros.
- * @note @ref COSC_SERIAL_READ is implicitly added to @p flags.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Setup a serial for reading.
+ * @param[out] serial The serial.
+ * @param buffer A writable buffer, must not be NULL.
+ * @param buffer_size The size of the buffer.
+ * @param levels Provided levels, must point to an array
+ * of levels with at least one member.
+ * @param level_max The number of provided levels, must
+ * be at least 1.
+ * @param flags Serial flags, see COSC_SERIAL_* macros.
+ * @see @ref COSC_SERIAL_PSIZE.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
  */
 COSC_API void cosc_reader_setup(
-    struct cosc_reader *reader,
+    struct cosc_serial *serial,
     const void *buffer,
     cosc_int32 buffer_size,
     struct cosc_level *levels,
@@ -2253,382 +2347,364 @@ COSC_API void cosc_reader_setup(
 );
 
 /**
- * Reset the reader levels and sizes, making it available for
- * completely new OSC data.
- * @param reader The reader.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API void cosc_reader_reset(
-    struct cosc_reader *reader
-);
-
-/**
- * Get the size of the buffer used by the reader.
- * @param reader The reader.
- * @returns The buffer size in bytes.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_buffer_size(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the number of bytes read bytes.
- * @param reader The reader.
- * @returns The read/read byte size.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_size(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the packet size for the reader, if level or no packet size is
- * available the buffer size is returned.
- * @param reader The reader.
- * @returns The byte size of the current level of the reader, will be -1
- * if no level has been started or if no packet size is used.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_psize(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the maximum number of levels the reader has.
- * @param reader The reader.
- * @returns The maximum number of levels the reader has.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_level_max(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the number of open levels of the reader.
- * @param reader The reader.
- * @returns The current level of the reader, will be 0
- * if no level has been started.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_level(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the byte size of the current level of the reader.
- * @param reader The reader.
- * @returns The byte size of the current level of the reader, will be 0
- * if no level has been started.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_level_size(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the packet size for the current level, if level or no packet size is
- * available -1 is returned.
- * @param reader The reader.
- * @returns The byte size of the current level of the reader, will be -1
- * if no level has been started or if no packet size is used.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_level_psize(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the type of the current level of the reader.
- * @param reader The reader.
- * @returns The type of the current level of the reader, will be 0
- * if no level has been started.
- * @see @ref COSC_LEVEL_TYPE_BUNDLE, @ref COSC_LEVEL_TYPE_MESSAGE
- * and @ref COSC_LEVEL_TYPE_BLOB.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_level_type(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the message typetag type of the current level of the reader.
- * @param reader The reader.
- * @returns The type of the current level of the reader, will be 0
- * if no level has been started or if the current level is not a message.
- * @note If this function returns 0 it means the message typetag
- * has ended and there are no more types left.
- * @remark This function is not available if both COSC_NOREADER was
- * defined when compiling.
- */
-COSC_API cosc_int32 cosc_reader_get_level_msgtype(
-    const struct cosc_reader *reader
-);
-
-/**
- * Get the buffer used by the reader.
- * @param reader The reader.
- * @returns A pointer to the start of the buffer.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
- */
-COSC_API const void *cosc_reader_get_buffer(
-    const struct cosc_reader *reader
-);
-
-/**
- * Peek a bundle.
- * @param reader The reader.
- * @param[out] timetag If non-NULL and the function does not return
- * a negative error code the timetag is stored here.
- * @param[out] psize If non-NULL and the function does not return
- * a negative error code the bundle size is stored here. If this is
- * a single bundle read without the @ref COSC_SERIAL_PSIZE flag
- * the value stored is 0.
- * @returns The number of read bytes or a negative error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Check if the buffer has a bundle at the current read size.
+ * @param serial The serial.
+ * @param[out] timetag If non-NULL and the function does not return a
+ * negative error code the timestamp is stored here.
+ * @param psize If non-NULL and the function does not return a negative
+ * error code stored the packet size here, will be 0 if there is no
+ * packet size.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept a bundle.
+ * - @ref COSC_ETYPE if it's not a bundle.
  */
 COSC_API cosc_int32 cosc_reader_peek_bundle(
-    struct cosc_reader *reader,
+    struct cosc_serial *serial,
     cosc_uint64 *timetag,
     cosc_int32 *psize
 );
 
 /**
- * Open a new bundle and add a level.
- * @param reader The reader.
- * @param[out] timetag If non-NULL and the function does not return
- * a negative error code the timetag is stored here.
- * @param[out] psize If non-NULL and the function does not return
- * a negative error code the bundle size is stored here. If this is
- * a single bundle read without the @ref COSC_SERIAL_PSIZE flag
- * the value stored is 0.
- * @returns The number of bytes increased to the new level on success
- * or a negative error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Start a new bundle level.
+ * @param serial The serial.
+ * @param[out] timetag If non-NULL and the function does not return a
+ * negative error code the timestamp is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELMAX the maximum number of levels is reached.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept a bundle.
+ * - @ref COSC_ETYPE if it's not a bundle.
  */
-COSC_API cosc_int32 cosc_reader_open_bundle(
-    struct cosc_reader *reader,
-    cosc_uint64 *timetag,
-    cosc_int32 *psize
+COSC_API cosc_int32 cosc_reader_start_bundle(
+    struct cosc_serial *serial,
+    cosc_uint64 *timetag
 );
 
 /**
- * Open a new message and add a level.
- * @param reader The reader.
- * @param[out] address If non-NULL and the function does not return
- * a negative error code the address pointer is stored here.
- * @param[out] address_n If non-NULL and the function does not return
- * a negative error code the address length, excluding the zero terminator,
- * is stored here.
- * @param[out] typetag If non-NULL and the function does not return
- * a negative error code the typetag pointer is stored here.
- * @param[out] typetag_n If non-NULL and the function does not return
- * a negative error code the typetag length, excluding the zero terminator,
- * is stored here.
- * @param[out] psize If non-NULL and the function does not return
- * a negative error code the bundle size is stored here. If this is
- * a single message read without the @ref COSC_SERIAL_PSIZE flag
- * the value stored is 0.
- * @returns The number of bytes increased to the new level on success
- * or a negative error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * End a bundle level.
+ * @param serial The serial.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_ELEVELTYPE if the current level is not a bundle.
  */
-COSC_API cosc_int32 cosc_reader_open_message(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_end_bundle(
+    struct cosc_serial *serial
+);
+
+/**
+ * Start a new message level.
+ * @param serial The serial.
+ * @param[out] address If non-NULL and the function does not return a
+ * negative error code a pointer to the address is stored here.
+ * @param[out] address_n If non-NULL and the function does not return a
+ * negative error code the length, excluding the zero terminator,
+ * of the address is stored here.
+ * @param[out] typetag If non-NULL and the function does not return a
+ * negative error code a pointer to the typetag is stored here.
+ * @param[out] typetag_n If non-NULL and the function does not return a
+ * negative error code the length, excluding the zero terminator,
+ * of the typetag is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELMAX the maximum number of levels is reached.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept a message.
+ */
+COSC_API cosc_int32 cosc_reader_start_message(
+    struct cosc_serial *serial,
     const char **address,
     cosc_int32 *address_n,
     const char **typetag,
-    cosc_int32 *typetag_n,
-    cosc_int32 *psize
+    cosc_int32 *typetag_n
 );
 
 /**
- * Open a new blob and add a level.
- * @param reader The reader.
- * @param[out] psize If non-NULL and the function does not return
- * a negative error code the blob size is stored here.
- * @returns The number of bytes increased to the new level on success
- * or a negative error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * End a message level.
+ * @param serial The serial.
+ * @param exit_early If non-zero and the @p types have an array specified
+ * the function will stop reading more array members and exit early even
+ * if there are more bytes left in @p buffer.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_ELEVELTYPE if the current level is not a message.
  */
-COSC_API cosc_int32 cosc_reader_open_blob(
-    struct cosc_reader *reader,
-    cosc_int32 *psize
+COSC_API cosc_int32 cosc_reader_end_message(
+    struct cosc_serial *serial,
+    cosc_int32 exit_early
 );
 
 /**
- * Close one or more levels of open bundles, messages and blobs.
- * @param reader The reader.
- * @param levels The number of levels to close or a negative value
- * to close all open levels.
- * @returns The number of bytes increased to the buffer on success
- * or a negative error code on failure.
- * @note If any open levels are messages any remaining message members
- * will be read as empty/zeroed before the message closes.
- * @note If any open levels are blobs it will get padded before closed.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Start a new blob level.
+ * @param serial The serial.
+ * @param[out] value_size If non-NULL and the function does not return
+ * a negative error code the BLOB data size is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @note To read raw bytes to a started blob level use
+ * cosc_reader_bytes().
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELMAX the maximum number of levels is reached.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept a blob.
  */
-COSC_API cosc_int32 cosc_reader_close(
-    struct cosc_reader *reader,
-    cosc_int32 levels
+COSC_API cosc_int32 cosc_reader_start_blob(
+    struct cosc_serial *serial,
+    cosc_int32 *value_size
 );
 
 /**
- * Read an unsigned 32-bit integer from a message and on success
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL and the call is successful
- * the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * End a blob level.
+ * @param serial The serial.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer, this
+ *   can happen if the blob needs to add pad bytes.
+ * - @ref COSC_ELEVELTYPE if the current level is not a blob.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_uint32(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_end_blob(
+    struct cosc_serial *serial
+);
+
+/**
+ * Write an unsigned 32-bit integer.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
+ */
+COSC_API cosc_int32 cosc_reader_uint32(
+    struct cosc_serial *serial,
     cosc_uint32 *value
 );
 
 /**
- * Read a signed 32-bit integer from a message and on success
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL and the call is successful
- * the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Write a signed 32-bit integer.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_int32(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_int32(
+    struct cosc_serial *serial,
     cosc_int32 *value
 );
 
 /**
- * Read a 32-bit float from a message and on success
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL and the call is successful
- * the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Write a 32-bit float.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_float32(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_float32(
+    struct cosc_serial *serial,
     cosc_float32 *value
 );
 
 /**
- * Read an unsigned 64-bit integer from a message and on success
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL and the call is successful
- * the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Write an unsigned 64-bit integer.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_uint64(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_uint64(
+    struct cosc_serial *serial,
     cosc_uint64 *value
 );
 
 /**
- * Read a signed 64-bit integer from a message and on success
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL and the call is successful
- * the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Write a signed 64-bit integer.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_int64(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_int64(
+    struct cosc_serial *serial,
     cosc_int64 *value
 );
 
 /**
- * Read a 64-bit float from a message and on success
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL and the call is successful
- * the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Write a 64-bit float.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_float64(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_float64(
+    struct cosc_serial *serial,
     cosc_float64 *value
 );
 
 /**
- * Read a string from a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param reader The reader.
+ * Write a string.
+ * @param serial The serial.
  * @param[out] value If non-NULL store the string here.
- * @param value_n Read at most this many bytes from @p value.
- * @param[ptr] ptr If non-NULL and the function does not return
- * a negative error code a pointer to the string is stored here.
- * @param[out] length If non-NULL and the function does not return
- * a negative error code the length of the string, excluding the
- * zero terminator, is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * @param value_n Store at most this many bytes to @p value.
+ * @param[out] length If non-NULL and the function does not return a
+ * negative error code the length of the string, excluding the zero
+ * terminator, is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_string(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_string(
+    struct cosc_serial *serial,
     char *value,
     cosc_int32 value_n,
-    const char **ptr,
     cosc_int32 *length
 );
 
 /**
- * Read a blob from a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL store the data here.
+ * Write a blob.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code store the blob data here.
  * @param value_n Store at most this many bytes to @p value.
- * @param[out] data If non-NULL and the function is successful store
- * a pointer to the data here.
- * @param[out] data_size If non-NULL and the call is successful
- * the byte size of the data is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * @param[out] data If non-NULL and the function does not return a negative
+ * error code a pointer to the first byte of the blob data is stored here,
+ * or NULL if the blob has zero bytes.
+ * @param[out] data_size If non-NULL and the function does not return a
+ * negative error code the size of the blob data is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @note To read raw bytes to a started blob level use
+ * cosc_reader_bytes().
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_blob(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_blob(
+    struct cosc_serial *serial,
     void *value,
     cosc_int32 value_n,
     const void **data,
@@ -2636,107 +2712,169 @@ cosc_int32 cosc_reader_blob(
 );
 
 /**
- * Read an ASCII character from a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL and the call is successful
- * the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Write an ASCII character.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_char(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_char(
+    struct cosc_serial *serial,
     cosc_int32 *value
 );
 
 /**
- * Read a MIDI message from a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL and the call is successful
- * the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Write a MIDI message.
+ * @param serial The serial.
+ * @param[out] value If non-NULL and the function does not return a
+ * negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @note Normally the fourth byte isn't used in MIDI.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_midi(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_midi(
+    struct cosc_serial *serial,
     unsigned char value[4]
 );
 
 /**
- * Read bytes from a message blob member and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] value If non-NULL store bytes here.
- * @param value_n The number of bytes to read.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Read a value.
+ * @param serial The serial.
+ * @param type The value typetag type.
+ * @param[out] value If non-NULL and the function does not return
+ * a negative error code the value is stored here.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @note Normally the fourth byte isn't used in MIDI.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
+ * - @ref COSC_ETYPE if @p type is invalid.
  */
-cosc_int32 cosc_reader_bytes(
-    struct cosc_reader *reader,
+COSC_API cosc_int32 cosc_reader_value(
+    struct cosc_serial *serial,
+    cosc_int32 type,
+    union cosc_value *value
+);
+
+/**
+ * Read an OSC message.
+ * @param serial The serial.
+ * @param message The message or NULL to discard the message.
+ * @param[out] value_count If non-NULL the number of read values is
+ * stored here.
+ * @param exit_early If non-zero and the @p types have an array specified
+ * the function will stop reading more array members and exit early even
+ * if there are more bytes left in @p buffer.
+ * @returns The number of read bytes or a negative error code if the
+ * operation fails.
+ * @note The message address is NOT validated.
+ * @note If message.values_n is less than the values specified
+ * in message.typetag the rest of the values will be read and discarded.
+ * @note The value of @p exit_early has no effect if COSC_NOARRAY was
+ * defined when building.
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_ETYPE if the message typetag is invalid.
+ */
+COSC_API cosc_int32 cosc_reader_message(
+    struct cosc_serial *serial,
+    struct cosc_message *message,
+    cosc_int32 *value_count,
+    cosc_int32 exit_early
+);
+
+/**
+ * Read bytes to a started blob level.
+ * @param serial The serial.
+ * @param[out] value If non-NULL store read bytes here
+ * or NULL to discard the bytes.
+ * @param value_n The number of bytes to read.
+ * @returns The number of read bytes or a negative error
+ * code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ */
+COSC_API cosc_int32 cosc_reader_bytes(
+    struct cosc_serial *serial,
     void *value,
     cosc_int32 value_n
 );
 
 /**
- * Read a value from a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @param[out] type If non-NULL and the function does not return a
- * negative error code the type is stored here.
- * @param[out] value If non-NULL and the function does not return a
- * negative error code the value is stored here.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Skip a value, if the value has payload it will be zeroes.
+ * @param serial The serial.
+ * @returns The number of read bytes or a negative error
+ * code on failure or 0 if there are no more types in the
+ * message typetag.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE if trying to add the value to a message where
+ *   the value type does not match the typetag.
  */
-cosc_int32 cosc_reader_value(
-    struct cosc_reader *reader,
-    cosc_int32 *type,
-    union cosc_value *value
+COSC_API cosc_int32 cosc_reader_skip(
+    struct cosc_serial *serial
 );
 
 /**
- * Read an OSC message from the reader.
- * @param reader The reader.
- * @param message The message or NULL to discard the message.
- * @param[out] value_count If non-NULL the number of read values is
- * stored here.
- * @returns The number of read bytes or a negative error code if the
- * operation fails.
- * @note The message address is NOT validated.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
+ * Repeat typetag from the beginning of an array start, not including the
+ * starting '[' character.
+ * @param serial The serial.
+ * @returns 0 on success or a negative error code on failure.
+ * @remark This function is not available if COSC_NOREADER
+ * was defined when compiling.
+ *
+ * Error codes:
+ *
+ * - @ref COSC_EINVAL if the serial was setup as a writer.
+ * - @ref COSC_EOVERRUN if the operation will overrun the buffer.
+ * - @ref COSC_ELEVELTYPE if the current level does not accept the value.
+ * - @ref COSC_EMSGTYPE the current message typetag type is not ']'.
  */
-COSC_API cosc_int32 cosc_reader_message(
-    struct cosc_reader *reader,
-    struct cosc_message *message,
-    cosc_int32 *value_count
-);
-
-/**
- * Read an skip a value in a message and on success proceed
- * to the next member of the message typetag.
- * proceed to the next member of the message typetag.
- * @param reader The reader.
- * @return The number of read bytes on success or a negative
- * error code on failure.
- * @remark This function is not available if COSC_NOREADER was defined
- * when compiling.
- */
-cosc_int32 cosc_reader_skip(
-    struct cosc_reader *reader
+COSC_API cosc_int32 cosc_reader_repeat(
+    struct cosc_serial *serial
 );
 
 #endif /* !COSC_NOREADER */

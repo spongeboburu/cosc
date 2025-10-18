@@ -50,10 +50,10 @@ int main(int argc, char *argv[])
 
     // Set timestamp at 60.25 seconds.
     cosc_uint64 timetag = cosc_time_to_timetag(60, 250000000);
-    cosc_int32 size = cosc_write_bundle(buffer, sizeof(buffer), timetag, 0);
+    cosc_int32 size = cosc_write_bundle(buffer, sizeof(buffer), timetag, -1);
     if (size < 0)
     {
-        printf("Uh oh, error %d.\n", size);
+        printf("Uh oh, error writing bundle %d.\n", size);
         return 1;
     }
 
@@ -63,19 +63,20 @@ int main(int argc, char *argv[])
         values[1].f = i / 10.0;
         cosc_int32 ret = cosc_write_message(
             buffer + size, (cosc_int32)sizeof(buffer) - size, &message,
-            true, NULL
+            -1, NULL
         );
         if (ret < 0)
         {
-            printf("Uh oh, error %d.\n", ret);
+            printf("Uh oh, error writing message %d.\n", ret);
             return 2;
+
+            size += ret;
         }
-        size += ret;
     }
 
-    // Store the bundle size as the first 4 bytes, minus those 4 bytes.
+    // Store the bundle size as the first 4 bytes.
     // Normally the bundle size would be indicated by some outside source,
-    // like an UDP packet, but here we are providing it in the buffer.
+    // like an UDP packet size, but here we are providing it in the buffer.
     cosc_write_int32(buffer, 4, size - 4);
     
     printf("%d bytes written for the bundle.\n", size);
@@ -85,7 +86,7 @@ int main(int argc, char *argv[])
     size = cosc_read_bundle(buffer, sizeof(buffer), &timetag, &bundle_size);
     if (size < 0)
     {
-        printf("Uh oh, error %d.\n", size);
+        printf("Uh oh, error reading bundle %d.\n", size);
         return 3;
     }
 
@@ -102,11 +103,11 @@ int main(int argc, char *argv[])
         cosc_int32 packet_size;
         cosc_int32 ret = cosc_read_message(
             buffer + size, sizeof(buffer) - size, &message,
-            &packet_size, 0
+            &packet_size, 0, true
         );
         if (ret < 0)
         {
-            printf("Uh oh, error %d.\n", ret);
+            printf("Uh oh, error reading message %d.\n", ret);
             return 4;
         }
 

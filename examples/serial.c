@@ -37,11 +37,11 @@ int main(int argc, char *argv[])
     char buffer[1024] = {0};
     struct cosc_level levels[4];
     cosc_int32 ret;
+    struct cosc_serial serial;
 
     // Setup the writer.
-    struct cosc_writer writer;
     cosc_writer_setup(
-        &writer,
+        &serial,
         buffer, sizeof(buffer), // Store to this buffer.
         levels, 4, // Provide 4 levels, 1 is minimum.
         0 // Zero flags.
@@ -51,25 +51,25 @@ int main(int argc, char *argv[])
     cosc_uint64 timetag = cosc_time_to_timetag(3, 500000000);
 
     // Start with a bundle (we could start with a message directly too).
-    ret = cosc_writer_open_bundle(&writer, timetag);
+    ret = cosc_writer_start_bundle(&serial, timetag);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't open bundle: %d\n", ret);
+        printf("Uh oh, couldn't start writing bundle: %d\n", ret);
         return 1;
     }
 
-    // We could use cosc_writer_message(&writer, &message, NULL) to write
+    // We could use cosc_writer_message(&serial, &message, NULL) to write
     // an entire message, but we want to nest things in the blob so
-    // let's go for an open message.
-    ret = cosc_writer_open_message(&writer, "/address", 1024, ",ibf", 1024);
+    // let's go for an start message.
+    ret = cosc_writer_start_message(&serial, "/address", 1024, ",ibf", 1024);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't open message: %d\n", ret);
+        printf("Uh oh, couldn't start writing message: %d\n", ret);
         return 1;
     }
 
     // The first value is 'i'.
-    ret = cosc_writer_int32(&writer, 150);
+    ret = cosc_writer_int32(&serial, 150);
     if (ret < 0)
     {
         printf("Uh oh, couldn't write 'i': %d\n", ret);
@@ -77,80 +77,93 @@ int main(int argc, char *argv[])
     }
 
     // We could write the entire blob like this:
-    // ret = cosc_writer_blob(&writer, blob_data, blob_size);
+    // ret = cosc_writer_blob(&serial, blob_data, blob_size);
     // But we want to nest another message into the blob.
-    ret = cosc_writer_open_blob(&writer);
+    ret = cosc_writer_start_blob(&serial);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't open blob: %d\n", ret);
+        printf("Uh oh, couldn't start writing blob: %d\n", ret);
         return 1;
     }
 
-    // With the blob open all other writes will be stored to the blob,
+    // With the blob start all other writes will be stored to the blob,
     // but we want a message. We could do it like this:
-    // cosc_writer_message(&writer, &message, NULL);
-    // But let's do it with an open message instead.
-    ret = cosc_writer_open_message(&writer, "/nested", 1024, ",i", 1024);
+    // cosc_writer_message(&serial, &message, NULL);
+    // But let's do it with an start message instead.
+    ret = cosc_writer_start_message(&serial, "/nested", 1024, ",i", 1024);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't open nested message: %d\n", ret);
+        printf("Uh oh, couldn't start writing nested message: %d\n", ret);
         return 1;
     }
     // The first value is 'i'.
-    ret = cosc_writer_int32(&writer, 333);
+    ret = cosc_writer_int32(&serial, 12345678);
     if (ret < 0)
     {
         printf("Uh oh, couldn't write 'i': %d\n", ret);
         return 1;
     }
 
-    // We now have 4 open levels (bundle, message, blob and message).
-    // Let's close 2 (the last message and the blob) so we can continue
-    // with the first level message. Close 2 then.
-    ret = cosc_writer_close(&writer, 2);
+    // Let's end the message nested message.
+    ret = cosc_writer_end_message(&serial);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't close the message and the blob: %d\n", ret);
+        printf("Uh oh, couldn't end writing the nested message: %d\n", ret);
+        return 1;
+    }
+
+    // Let's end the blob.
+    ret = cosc_writer_end_blob(&serial);
+    if (ret < 0)
+    {
+        printf("Uh oh, couldn't end writing the blob: %d\n", ret);
         return 1;
     }
 
     // Now we're back to the first message, let's wrap it up with
     // it's third and final value of type 'f'.
-    ret = cosc_writer_float32(&writer, 1.5);
+    ret = cosc_writer_float32(&serial, 1.5);
     if (ret < 0)
     {
         printf("Uh oh, couldn't write 'f': %d\n", ret);
         return 1;
     }
 
-    // Done, let's close the message and the bundle.
-    ret = cosc_writer_close(&writer, 2);
+    // Done, let's end the message.
+    ret = cosc_writer_end_message(&serial);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't close the message and the bundle: %d\n", ret);
+        printf("Uh oh, couldn't end writing the message: %d\n", ret);
         return 1;
     }
 
+    // Done, let's end the bundle.
+    ret = cosc_writer_end_bundle(&serial);
+    if (ret < 0)
+    {
+        printf("Uh oh, couldn't end writing the bundle: %d\n", ret);
+        return 1;
+    }
+    
     // How big was it?
-    printf("Wrote %d bytes of OSC data.\n", cosc_writer_get_size(&writer));
+    printf("Wrote %d bytes of OSC data.\n", cosc_serial_get_size(&serial));
 
     // We could dump the buffer to see what it looks like.
-    // for (int i = 0; i < cosc_writer_get_size(&writer); i++)
-    // {
-    //     printf("%03d: 0x%02x '%c'\n", i, (unsigned char)buffer[i], buffer[i] > 31 ? buffer[i] : ' ');
-    // }
+    for (int i = 0; i < cosc_serial_get_size(&serial); i++)
+    {
+        printf("%03d: 0x%02x '%c'\n", i, (unsigned char)buffer[i], buffer[i] > 31 ? buffer[i] : ' ');
+    }
 
     // Now to read it all.
-    struct cosc_reader reader;
     cosc_reader_setup(
-        &reader,
-        buffer, cosc_writer_get_size(&writer), // Load from this buffer.
+        &serial,
+        buffer, cosc_serial_get_size(&serial), // Load from this buffer using the written size.
         levels, 4, // Levels.
         0 // No flags.
     );
 
     // Let's just make sure we have a bundle
-    if (cosc_reader_peek_bundle(&reader, NULL, NULL) < 0)
+    if (cosc_reader_peek_bundle(&serial, NULL, NULL) < 0)
     {
         printf("Uh oh, not a bundle? %d\n", ret);
         return 1;
@@ -158,10 +171,10 @@ int main(int argc, char *argv[])
 
     // The bundle.
     timetag = 0; // Just to make sure we actuall did read it.
-    ret = cosc_reader_open_bundle(&reader, &timetag, NULL);
+    ret = cosc_reader_start_bundle(&serial, &timetag);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't open bundle: %d\n", ret);
+        printf("Uh oh, couldn't start bundle: %d\n", ret);
         return 1;
     }
 
@@ -169,25 +182,24 @@ int main(int argc, char *argv[])
     cosc_uint32 seconds = cosc_timetag_to_time(timetag, &nanos);
     printf("Timetag is %f.\n", (double)seconds + nanos / 1000000000.0);
 
-    // Open the message.
+    // Start the message.
     const char *address, *typetag;
-    cosc_int32 address_len, typetag_len, packet_size;
-    ret = cosc_reader_open_message(
-        &reader,
+    cosc_int32 address_len, typetag_len;
+    ret = cosc_reader_start_message(
+        &serial,
         &address, &address_len,
-        &typetag, &typetag_len,
-        &packet_size
+        &typetag, &typetag_len
     );
     if (ret < 0)
     {
-        printf("Uh oh, couldn't open message: %d\n", ret);
+        printf("Uh oh, couldn't start message: %d\n", ret);
         return 1;
     }
-    printf("Address '%s' and typetag '%s' (message is %d bytes)\n", address, typetag, packet_size);
+    printf("Address '%s' and typetag '%s'\n", address, typetag);
 
     // First value
     cosc_int32 value_i;
-    ret = cosc_reader_int32(&reader, &value_i);
+    ret = cosc_reader_int32(&serial, &value_i);
     if (ret < 0)
     {
         printf("Uh oh, couldn't read 'i': %d\n", ret);
@@ -197,10 +209,10 @@ int main(int argc, char *argv[])
 
     // Then the blob.
     cosc_int32 blob_size;
-    ret = cosc_reader_open_blob(&reader, &blob_size);
+    ret = cosc_reader_start_blob(&serial, &blob_size);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't open blob: %d\n", ret);
+        printf("Uh oh, couldn't start blob: %d\n", ret);
         return 1;
     }
     printf("Blob is %d bytes.\n", blob_size);
@@ -214,17 +226,18 @@ int main(int argc, char *argv[])
         .values_n = 1
     };
     cosc_int32 value_count; // We can see the actual number of values here.
-    ret = cosc_reader_message(&reader, &message, &value_count);
+    ret = cosc_reader_message(&serial, &message, &value_count, true);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't read message: %d\n", ret);
+        printf("Uh oh, couldn't read nested message: %d\n", ret);
         return 1;
     }
-    printf("Nested message had %d values.\n", value_count);
+    printf("Address='%s', Typetag='%s'\n", message.address, message.typetag);
+    printf("Nested message has %d values.\n", value_count);
     printf("Value 'i': %d\n", values[0].i);
 
     // Close the blob.
-    ret = cosc_reader_close(&reader, 1);
+    ret = cosc_reader_end_blob(&serial);
     if (ret < 0)
     {
         printf("Uh oh, couldn't close the blob: %d\n", ret);
@@ -233,24 +246,32 @@ int main(int argc, char *argv[])
 
     // Final value of the top message.
     cosc_float32 value_f;
-    ret = cosc_reader_float32(&reader, &value_f);
+    ret = cosc_reader_float32(&serial, &value_f);
     if (ret < 0)
     {
         printf("Uh oh, couldn't read 'f': %d\n", ret);
         return 1;
     }
+    printf("Final float is %f\n", value_f);
 
-    // We are done, we need to close the message and the bundle,
-    // here's a short way -1 means close all levels.
-    ret = cosc_reader_close(&reader, -1);
+    // We need to end the top message.
+    ret = cosc_reader_end_message(&serial, true);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't read 'f': %d\n", ret);
+        printf("Uh oh, couldn't end the message: %d\n", ret);
         return 1;
     }
 
+    // We need to end the bundle.
+    ret = cosc_reader_end_bundle(&serial);
+    if (ret < 0)
+    {
+        printf("Uh oh, couldn't end the message: %d\n", ret);
+        return 1;
+    }
+    
     // How big was it?
-    printf("Read %d bytes of OSC data.\n", cosc_reader_get_size(&reader));
+    printf("Read %d bytes of OSC data.\n", cosc_serial_get_size(&serial));
 
     return 0;
 }
