@@ -2227,9 +2227,7 @@ COSC_API cosc_int32 cosc_writer_value(
 
 /**
  * Write an OSC message.
- * @param[out] buffer If non-NULL store the OSC data here, if NULL
- * then no bytes are stored.
- * @param size Store at most this many bytes to @p buffer.
+ * @param serial The serial.
  * @param message The message or NULL for an empty message.
  * @param[out] value_count If non-NULL the number of written values is
  * stored here.
