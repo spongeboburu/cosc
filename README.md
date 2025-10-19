@@ -130,9 +130,9 @@ Defined at compile and include time:
 - `COSC_NOTIMETAG` to remove timetag conversion functions.
 - `COSC_NOFLTCONV` to remove float conversion functions.
 - `COSC_NOSTDINT` for no inclusion of `stdint.h` (or `cstdint` if C++).
-- `COSC_NOINT64` to typedef `cosc_int64` and `cosc_uint64` types as `cosc_64bits`.
+- `COSC_NOINT64` to typedef `cosc_int64` and `cosc_uint64` types as `struct cosc_64bits`.
 - `COSC_NOFLOAT32` to typedef `cosc_float32` as `cosc_uint32`.
-- `COSC_NOFLOAT64` to typedef `cosc_float64` as `cosc_uint64`.
+- `COSC_NOFLOAT64` to typedef `cosc_float64` as `struct cosc_64bits`.
 - `COSC_TYPE_UINT32` used to override typedef `cosc_uint32`.
 - `COSC_TYPE_INT32` used to override typedef `cosc_int32`.
 - `COSC_TYPE_FLOAT32` used to override typedef `cosc_float32`.
@@ -198,7 +198,7 @@ Write and read full message using a struct:
     );
     cosc_read_message(
         buffer, sizeof(buffer), &message,
-        &packet_size, &value_count
+        &packet_size, &value_count, false
     );
 ```
 
@@ -208,14 +208,15 @@ do more advanced nesting of messages in bundles etc.
 
 ```c
     char buffer[1024];
-    struct cosc_writer writer;
+    struct cosc_level levels[4];
+    struct cosc_serial writer;
     cosc_writer_setup(
         &writer,
         buffer, sizeof(buffer), // Store to this buffer.
         levels, 4, // Provide 4 levels, 1 is minimum.
         0 // Zero flags.
     );
-    struct cosc_reader reader;
+    struct cosc_serial reader;
     cosc_reader_setup(
         &reader,
         buffer, cosc_writer_get_size(&writer), // Load from this buffer.
@@ -230,13 +231,12 @@ from the buffer.
 ### 64-bit types on non-64 systems.
 
 Handling 64-bit types on systems without them involves a struct with
-hi (most significant) and lo (least significant) members.
+most significant and least significant bits.
 
 ```c
 struct cosc_64bits
 {
-    cosc_uint32 hi;
-    cosc_uint32 lo;
+    cosc_uint32 w[2];
 };
 ```
 

@@ -21,7 +21,6 @@
  * - COSC_NOINT64 to typedef `cosc_int64` and `cosc_uint64` as @ref cosc_64bits.
  * - COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
  * - COSC_NOFLOAT64 to typedef `cosc_float64` as @ref cosc_64bits.
- *   or @ref cosc_64bits if COSC_NOINT64 is also defined.
  *
  * Type overrides (also at compile AND include time):
  *
