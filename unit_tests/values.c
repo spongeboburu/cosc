@@ -6,6 +6,7 @@
 #include <cmocka.h>
 
 #include <stdio.h>
+#include <stdbool.h>
 #include "cosc.h"
 
 static char buffer[1024];
