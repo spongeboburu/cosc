@@ -103,6 +103,67 @@ static void test_with_array(void **state)
     assert_int_equal(value_count, 31);
     assert_int_equal(read_values[0].i, 10);
 }
+
+static void test_with_array_unfinished(void **state)
+{
+    cosc_int32 ret;
+    cosc_int32 value_count = 0;
+    union cosc_value read_values[31] = {0};
+    union cosc_value write_values[31];
+    write_values[0].i = 10;
+    for (int i = 1; i < 31; i++)
+        write_values[i].f = i;
+    ret = cosc_write_values(
+        buffer, sizeof(buffer),
+        ",i[fff]", 1024,
+        write_values, 30,
+        &value_count
+    );
+    assert_int_equal(ret, 4 + 12 * 10);
+    assert_int_equal(value_count, 31);
+    value_count = 0;
+    ret = cosc_read_values(
+        buffer, sizeof(buffer),
+        ",i[fff]", 1024,
+        read_values, 30,
+        &value_count,
+        true
+    );
+    assert_int_equal(ret, 4 + 12 * 10);
+    assert_int_equal(value_count, 31);
+    assert_int_equal(read_values[0].i, 10);
+}
+
+static void test_with_array_early_exit(void **state)
+{
+    cosc_int32 ret;
+    cosc_int32 value_count = 0;
+    union cosc_value read_values[31] = {0};
+    union cosc_value write_values[31];
+    write_values[0].i = 10;
+    for (int i = 1; i < 31; i++)
+        write_values[i].f = i;
+    ret = cosc_write_values(
+        buffer, sizeof(buffer),
+        ",i[fff]", 1024,
+        write_values, 28,
+        &value_count
+    );
+    assert_int_equal(ret, 4 + 12 * 9);
+    assert_int_equal(value_count, 28);
+    value_count = 0;
+    ret = cosc_read_values(
+        buffer, sizeof(buffer),
+        ",i[fff]", 1024,
+        read_values, 28,
+        &value_count,
+        true
+    );
+    assert_int_equal(ret, 4 + 12 * 9);
+    assert_int_equal(value_count, 28);
+    assert_int_equal(read_values[0].i, 10);
+}
+
 #endif
 
 int main(void)
@@ -111,6 +172,8 @@ int main(void)
         cmocka_unit_test_setup(test_without_array, func_setup),
 #ifndef COSC_NOARRAY
         cmocka_unit_test_setup(test_with_array, func_setup),
+        cmocka_unit_test_setup(test_with_array_unfinished, func_setup),
+        cmocka_unit_test_setup(test_with_array_early_exit, func_setup),
 #endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);

@@ -55,18 +55,65 @@ static void test_message_nopsize(void **state)
 {
     cosc_int32 ret;
     cosc_int32 value_count = 0;
+#ifdef __cplusplus
+    struct cosc_message read = {};
+#else
+    struct cosc_message read = {0};
+#endif
     ret = cosc_write_message(
         buffer, sizeof(buffer),
         &WRITE_MESSAGE, 0,
         &value_count
     );
     assert_int_equal(ret, 120);
+    ret = cosc_read_message(
+        buffer, sizeof(buffer),
+        &read, NULL,
+        &value_count,
+        false
+    );
+    assert_int_equal(ret, 120);
+    assert_int_equal(read.address_n, 6);
+    assert_string_equal(read.address, "/hello");
+    assert_int_equal(read.typetag_n, 16);
+    assert_string_equal(read.typetag, ",ifrcmsSbhtdTFNI");
+}
+
+static void test_message_psize(void **state)
+{
+    cosc_int32 ret;
+    cosc_int32 value_count = 0;
+#ifdef __cplusplus
+    struct cosc_message read = {};
+#else
+    struct cosc_message read = {0};
+#endif
+    ret = cosc_write_message(
+        buffer, sizeof(buffer),
+        &WRITE_MESSAGE, -1,
+        &value_count
+    );
+    assert_int_equal(ret, 124);
+    cosc_int32 psize = 0;
+    ret = cosc_read_message(
+        buffer, sizeof(buffer),
+        &read, &psize,
+        &value_count,
+        false
+    );
+    assert_int_equal(ret, 124);
+    assert_int_equal(psize, 120);
+    assert_int_equal(read.address_n, 6);
+    assert_string_equal(read.address, "/hello");
+    assert_int_equal(read.typetag_n, 16);
+    assert_string_equal(read.typetag, ",ifrcmsSbhtdTFNI");
 }
 
 int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup(test_message_nopsize, func_setup),
+        cmocka_unit_test_setup(test_message_psize, func_setup),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
