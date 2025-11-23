@@ -1024,12 +1024,10 @@ cosc_float32 cosc_float64_to_float32(
     cosc_float64 value
 )
 {
-    // FIXME: sub normal numbers.
-#ifndef COSC_NOFLOAT64
-#ifndef COSC_NOINT64
-    cosc_uint64 tmpbits = COSC_PUN(cosc_float64, cosc_uint64, value);
-    struct cosc_64bits bits = COSC_64BITS_INIT(tmpbits >> 32, tmpbits & 0xffffffff);
+#if !defined(COSC_NOFLOAT64) && !defined(COSC_NOFLOAT32)
+    return value;
 #else
+#ifndef COSC_NOFLOAT64
     struct cosc_64bits bits = COSC_PUN(cosc_float64, struct cosc_64bits, value);
     if (!cosc_big_endian())
     {
@@ -1037,10 +1035,10 @@ cosc_float32 cosc_float64_to_float32(
         COSC_64BITS_HI(&bits) = COSC_64BITS_LO(&bits);
         COSC_64BITS_LO(&bits) = tmp;
     }
-#endif
 #else
     struct cosc_64bits bits = value;
 #endif
+    // FIXME: sub normal numbers.
     cosc_uint32 sign = COSC_64BITS_HI(&bits) & 0x80000000;
     cosc_int32 exponent = (COSC_64BITS_HI(&bits) >> 20) & 0x7ff;
     cosc_uint32 fraction = (COSC_64BITS_HI(&bits) & 0xfffff) << 3;
@@ -1070,10 +1068,12 @@ cosc_float32 cosc_float64_to_float32(
             }
         }
     }
+    uint32_t ret = sign | ((cosc_uint32)exponent << 23) | fraction;
 #ifndef COSC_NOFLOAT32
-    return COSC_PUN(cosc_uint32, cosc_float32, sign | ((cosc_uint32)exponent << 23) | fraction);
+    return COSC_PUN(cosc_uint32, cosc_float32, ret);
 #else
-    return sign | ((cosc_uint32)exponent << 23) | fraction;
+    return ret;
+#endif
 #endif
 }
 
@@ -1081,11 +1081,10 @@ cosc_float64 cosc_float32_to_float64(
     cosc_float32 value
 )
 {
-#ifndef COSC_NOFLOAT32
-    cosc_uint32 bits = COSC_PUN(cosc_float32, cosc_uint32, value);
+#if !defined(COSC_NOFLOAT64) && !defined(COSC_NOFLOAT32)
+    return value;
 #else
-    cosc_uint32 bits = value;
-#endif
+    cosc_uint32 bits = COSC_PUN(cosc_float32, cosc_uint32, value);
     cosc_uint32 sign = (bits & 0x80000000);
     cosc_int32 exponent = (bits >> 23) & 0xff;
     cosc_uint32 fraction = bits & 0x7fffff;
@@ -1101,9 +1100,7 @@ cosc_float64 cosc_float32_to_float64(
     }
     struct cosc_64bits ret = COSC_64BITS_INIT(sign | ((cosc_uint32)exponent << 20), (fraction & 0x7) << 29);
     COSC_64BITS_HI(&ret) |= fraction >> 3;
-#if defined(COSC_NOFLOAT64)
-    return ret;
-#elif defined(COSC_NOINT64)
+#ifndef COSC_NOFLOAT64
     if (!cosc_big_endian())
     {
         cosc_uint32 tmp = COSC_64BITS_HI(&ret);
@@ -1112,7 +1109,8 @@ cosc_float64 cosc_float32_to_float64(
     }
     return COSC_PUN(struct cosc_64bits, cosc_float64, ret);
 #else
-    return COSC_PUN(cosc_uint64, cosc_float64, ((cosc_uint64)COSC_64BITS_HI(&ret) << 32) | COSC_64BITS_LO(&ret));
+    return ret;
+#endif
 #endif
 }
 
