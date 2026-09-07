@@ -1038,34 +1038,93 @@ cosc_float32 cosc_float64_to_float32(
 #else
     struct cosc_64bits bits = value;
 #endif
-    // FIXME: sub normal numbers.
     cosc_uint32 sign = COSC_64BITS_HI(&bits) & 0x80000000;
     cosc_int32 exponent = (COSC_64BITS_HI(&bits) >> 20) & 0x7ff;
-    cosc_uint32 fraction = (COSC_64BITS_HI(&bits) & 0xfffff) << 3;
-    fraction |= COSC_64BITS_LO(&bits) >> 29;
+    cosc_uint32 significand_hi = COSC_64BITS_HI(&bits) & 0xfffff;
+    cosc_uint32 significand_lo = COSC_64BITS_LO(&bits);
+    cosc_uint32 fraction;
     if (exponent >= 0x7ff)
     {
         exponent = 0xff;
+        fraction = significand_hi << 3;
+        fraction |= significand_lo >> 29;
+        if (fraction)
+            fraction |= 0x400000;
+    }
+    else if (exponent == 0)
+    {
+        exponent = 0;
         fraction = 0;
     }
-    else if (exponent > 0)
+    else
     {
         exponent -= 1023;
         exponent += 127;
-        int round = (COSC_64BITS_LO(&bits) << 3) >= 0x80000000;
-        if (round)
+        significand_hi |= 0x100000;
+        if (exponent > 0)
         {
-            fraction++;
-            if (fraction > 0x7fffff)
+            fraction = significand_hi << 3;
+            fraction |= significand_lo >> 29;
+            if ((significand_lo & 0x10000000)
+                && ((significand_lo & 0x0fffffff) || (fraction & 1)))
+                fraction++;
+            if (fraction >= 0x1000000)
             {
                 exponent++;
-                fraction &= fraction;
+                fraction = 0;
                 if (exponent >= 0xff)
                 {
                     exponent = 0xff;
                     fraction = 0;
                 }
             }
+            else
+                fraction &= 0x7fffff;
+        }
+        else
+        {
+            cosc_int32 shift = 30 - exponent;
+            cosc_uint32 round_bit = 0;
+            cosc_uint32 sticky = 0;
+
+            if (shift < 32)
+            {
+                fraction = (significand_hi << (32 - shift))
+                    | (significand_lo >> shift);
+                round_bit = (significand_lo >> (shift - 1)) & 1;
+                if (shift > 1)
+                    sticky = significand_lo & ((1U << (shift - 1)) - 1);
+            }
+            else if (shift == 32)
+            {
+                fraction = significand_hi;
+                round_bit = significand_lo >> 31;
+                sticky = significand_lo & 0x7fffffff;
+            }
+            else if (shift <= 53)
+            {
+                cosc_int32 low_bits = shift - 32;
+                fraction = significand_hi >> low_bits;
+                round_bit = (significand_hi >> (low_bits - 1)) & 1;
+                sticky = significand_lo;
+                if (low_bits > 1)
+                    sticky |= significand_hi & ((1U << (low_bits - 1)) - 1);
+            }
+            else
+            {
+                fraction = 0;
+            }
+
+            if (round_bit && (sticky || (fraction & 1)))
+                fraction++;
+
+            if (fraction >= 0x800000)
+            {
+                exponent = 1;
+                fraction = 0;
+            }
+            else
+                exponent = 0;
         }
     }
     uint32_t ret = sign | ((cosc_uint32)exponent << 23) | fraction;
@@ -1091,9 +1150,61 @@ cosc_float64 cosc_float32_to_float64(
     if (exponent == 0xff)
     {
         exponent = 0x7ff;
-        fraction = 0;
+        if (fraction)
+            fraction |= 0x400000;
     }
-    else if (exponent > 0)
+    else if (exponent == 0)
+    {
+        if (fraction == 0)
+        {
+            struct cosc_64bits ret = COSC_64BITS_INIT(sign, 0);
+#ifndef COSC_NOFLOAT64
+            if (!cosc_big_endian())
+            {
+                cosc_uint32 tmp = COSC_64BITS_HI(&ret);
+                COSC_64BITS_HI(&ret) = COSC_64BITS_LO(&ret);
+                COSC_64BITS_LO(&ret) = tmp;
+            }
+            return COSC_PUN(struct cosc_64bits, cosc_float64, ret);
+#else
+            return ret;
+#endif
+        }
+
+        cosc_int32 leading = 22;
+        while ((fraction & ((cosc_uint32)1 << leading)) == 0)
+            leading--;
+        exponent = leading + 874;
+        fraction -= (cosc_uint32)1 << leading;
+
+        cosc_int32 shift = 52 - leading;
+        struct cosc_64bits ret;
+        if (shift >= 32)
+        {
+            COSC_64BITS_SET(&ret, 0, 0);
+            COSC_64BITS_HI(&ret) = sign | ((cosc_uint32)exponent << 20)
+                | (fraction << (shift - 32));
+        }
+        else
+        {
+            COSC_64BITS_SET(&ret, 0, 0);
+            COSC_64BITS_HI(&ret) = sign | ((cosc_uint32)exponent << 20)
+                | (fraction >> (32 - shift));
+            COSC_64BITS_LO(&ret) = fraction << shift;
+        }
+#ifndef COSC_NOFLOAT64
+        if (!cosc_big_endian())
+        {
+            cosc_uint32 tmp = COSC_64BITS_HI(&ret);
+            COSC_64BITS_HI(&ret) = COSC_64BITS_LO(&ret);
+            COSC_64BITS_LO(&ret) = tmp;
+        }
+        return COSC_PUN(struct cosc_64bits, cosc_float64, ret);
+#else
+        return ret;
+#endif
+    }
+    else
     {
         exponent -= 127;
         exponent += 1023;
