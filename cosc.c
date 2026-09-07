@@ -283,113 +283,6 @@ static void cosc_add64(struct cosc_64bits *augend, cosc_uint32 addend)
 
 #ifndef COSC_NOPATTERN
 
-static cosc_int32 cosc_strncmp(const char *a, cosc_int32 a_n, const char *b, cosc_int32 b_n)
-{
-    if (a_n <= 0 && b_n <= 0)
-        return 0;
-    if (a_n <= 0 && b_n > 0 && *b != 0)
-        return -1;
-    if (b_n <= 0 && a_n > 0 && *a != 0)
-        return -1;
-    for (cosc_int32 i = 0; i < a_n && i < b_n; i++)
-    {
-        if (a[i] < b[i])
-            return -1;
-        else if (a[i] > b[i])
-            return 1;
-        if (a[i] == 0)
-            break;
-    }
-    return 0;
-}
-
-static cosc_int32 cosc_charset_match(
-    char character,
-    const char *charset,
-    cosc_int32 charset_n,
-    cosc_int32 *forward
-)
-{
-    cosc_int32 len = 0;
-    if (charset_n < 2 || charset[len] != '[' || !character)
-    {
-        if (forward)
-            *forward = len;
-        return 0;
-    }
-    len++;
-    cosc_int32 found = -1;
-    while (len < charset_n && charset[len] != 0 && charset[len] != ']')
-    {
-        if (charset[len] == character)
-            found = len;
-        len++;
-    }
-    if (len < charset_n && charset[len] == ']'
-        && (found >= 0 || charset[len - 1] == '['))
-    {
-        len++;
-        if (forward)
-            *forward = len;
-        return 1;
-    }
-    if (forward)
-        *forward = len;
-    return 0;
-}
-
-static cosc_int32 cosc_stringset_match(
-    const char *s,
-    cosc_int32 s_n,
-    const char *stringset,
-    cosc_int32 stringset_n,
-    cosc_int32 *forward,
-    cosc_int32 *s_forward
-)
-{
-    cosc_int32 len = 0, slen = 0;
-    if (stringset_n < 2 || stringset[len] != '{')
-    {
-        if (forward)
-            *forward = 0;
-        if (s_forward)
-            *s_forward = 0;
-        return 0;
-    }
-    len++;
-    while (len < stringset_n && stringset[len] != 0 && stringset[len] != '}')
-    {
-        cosc_int32 end = len;
-        while (end < stringset_n && stringset[end] != 0 && stringset[end] != '}' && stringset[end] != ',')
-            end++;
-        slen = end - len;
-        if (cosc_strncmp(stringset + len, slen, s, s_n) == 0)
-        {
-            len = end;
-            while (len < stringset_n && stringset[len] != 0 && stringset[len] != '}')
-                len++;
-            break;
-        }
-        else
-            slen = 0;
-        len = end + 1;
-    }
-    if (len < stringset_n && stringset[len] == '}')
-    {
-        len++;
-        if (forward)
-            *forward = len;
-        if (s_forward)
-            *s_forward = slen;
-        return 1;
-    }
-    if (forward)
-        *forward = len;
-    if (s_forward)
-        *s_forward = 0;
-    return 0;
-}
-
 #endif /* !COSC_NOPATTERN */
 
 static cosc_int32 cosc_type_is_valid(
@@ -578,11 +471,17 @@ cosc_int32 cosc_address_validate(
 )
 {
     cosc_int32 len = 0;
-    if (address_n <= 0 || *address == 0)
+    if (address_n <= 0 || !address || *address == 0)
     {
         if (invalid)
-            *invalid = -1;
-        return 1;
+            *invalid = 0;
+        return 0;
+    }
+    if (address[0] != '/')
+    {
+        if (invalid)
+            *invalid = 0;
+        return 0;
     }
     while (len < address_n && address[len] != 0)
     {
@@ -638,8 +537,6 @@ cosc_int32 cosc_typetag_validate(
     while (len < typetag_n && typetag[len] != 0)
     {
 #ifndef COSC_NOARRAY
-        if (array == ']')
-            break;
         if (typetag[len] == '[')
         {
             if (array)
@@ -654,8 +551,14 @@ cosc_int32 cosc_typetag_validate(
         }
         if (typetag[len] == ']')
         {
+            if (array != '[')
+            {
+                if (invalid)
+                    *invalid = len;
+                return 0;
+            }
             len++;
-            array = ']';
+            array = 0;
             continue;
         }
 #endif
@@ -734,7 +637,7 @@ cosc_int32 cosc_pattern_char_validate(
     cosc_int32 c
 )
 {
-    return cosc_type_is_valid(c, 1);
+    return cosc_type_is_valid(c, 1) || c == ']' || c == '}';
 }
 
 cosc_int32 cosc_pattern_validate(
@@ -798,6 +701,134 @@ cosc_int32 cosc_pattern_validate(
     return 1;
 }
 
+static cosc_int32 cosc_pattern_match_at(
+    const char *s,
+    cosc_int32 s_n,
+    cosc_int32 s_offset,
+    const char *pattern,
+    cosc_int32 pattern_n,
+    cosc_int32 p_offset,
+    cosc_int32 is_typetag
+)
+{
+    cosc_int32 end, start;
+
+#ifndef COSC_NOARRAY
+    if (is_typetag)
+    {
+        while (s_offset < s_n && (s[s_offset] == '[' || s[s_offset] == ']'))
+            s_offset++;
+    }
+#endif
+
+    if (p_offset >= pattern_n || pattern[p_offset] == 0)
+        return s_offset >= s_n || s[s_offset] == 0;
+
+    if (pattern[p_offset] == '*')
+    {
+        if (cosc_pattern_match_at(s, s_n, s_offset, pattern, pattern_n,
+                p_offset + 1, is_typetag))
+            return 1;
+        if (s_offset < s_n && s[s_offset] != 0)
+            return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+                pattern_n, p_offset, is_typetag);
+        return 0;
+    }
+
+    if (pattern[p_offset] == '[')
+    {
+        start = p_offset + 1;
+        end = start;
+        while (end < pattern_n && pattern[end] != 0 && pattern[end] != ']')
+            end++;
+        if (end >= pattern_n || pattern[end] != ']')
+            return 0;
+        if (start == end)
+            return cosc_pattern_match_at(s, s_n, s_offset, pattern,
+                pattern_n, end + 1, is_typetag);
+        if (s_offset >= s_n || s[s_offset] == 0)
+            return 0;
+        for (cosc_int32 i = start; i < end; i++)
+        {
+            if (s[s_offset] == pattern[i])
+                return cosc_pattern_match_at(s, s_n, s_offset + 1,
+                    pattern, pattern_n, end + 1, is_typetag);
+        }
+        return 0;
+    }
+
+    if (pattern[p_offset] == '{')
+    {
+        start = p_offset + 1;
+        end = start;
+        while (end < pattern_n && pattern[end] != 0 && pattern[end] != '}')
+            end++;
+        if (end >= pattern_n || pattern[end] != '}')
+            return 0;
+        while (start <= end)
+        {
+            cosc_int32 candidate_end = start;
+            while (candidate_end < end && pattern[candidate_end] != ',')
+                candidate_end++;
+            if (candidate_end - start <= s_n - s_offset)
+            {
+                cosc_int32 equal = 1;
+                for (cosc_int32 i = 0; i < candidate_end - start; i++)
+                {
+                    if (s_offset + i >= s_n || s[s_offset + i] == 0
+                        || s[s_offset + i] != pattern[start + i])
+                    {
+                        equal = 0;
+                        break;
+                    }
+                }
+                if (equal && cosc_pattern_match_at(s, s_n,
+                        s_offset + candidate_end - start, pattern,
+                        pattern_n, end + 1, is_typetag))
+                    return 1;
+            }
+            if (candidate_end == end)
+                break;
+            start = candidate_end + 1;
+        }
+        return 0;
+    }
+
+    if (s_offset >= s_n || s[s_offset] == 0)
+        return 0;
+    if (pattern[p_offset] == '?')
+        return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+            pattern_n, p_offset + 1, is_typetag);
+    if (pattern[p_offset] == '#')
+    {
+        if (is_typetag)
+        {
+            switch (s[s_offset])
+            {
+            case 'i': case 'r': case 'f': case 'h': case 't': case 'd':
+                break;
+            default:
+                return 0;
+            }
+        }
+        else if (s[s_offset] < '0' || s[s_offset] > '9')
+            return 0;
+        return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+            pattern_n, p_offset + 1, is_typetag);
+    }
+    if (pattern[p_offset] == 'B')
+    {
+        if (!is_typetag || (s[s_offset] != 'T' && s[s_offset] != 'F'))
+            return 0;
+        return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+            pattern_n, p_offset + 1, is_typetag);
+    }
+    if (s[s_offset] != pattern[p_offset])
+        return 0;
+    return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+        pattern_n, p_offset + 1, is_typetag);
+}
+
 cosc_int32 cosc_pattern_match(
     const char *s,
     cosc_int32 s_n,
@@ -805,131 +836,18 @@ cosc_int32 cosc_pattern_match(
     cosc_int32 pattern_n
 )
 {
-    cosc_int32 s_offset = 0, p_offset = 0, slen, plen;
-    char is_typetag;
-    if ((s_n <= 0 || *s == 0) && (pattern_n <= 0 || *pattern == 0))
-        return 1;
-    if (s_n > 0 && *s == ',')
-    {
-        is_typetag = 1;
-        s_offset++;
-    }
-    else
-        is_typetag = 0;
-    if (pattern_n > 0 && *pattern == ',' && is_typetag)
-        p_offset++;
-    while (
-        s_offset < s_n && s[s_offset] != 0
-        && p_offset < pattern_n && pattern[p_offset] != 0)
-    {
-#ifndef COSC_NOARRAY
-        if (is_typetag && (s[s_offset] == '[' || s[s_offset] == ']'))
-        {
-            s_offset++;
-            continue;
-        }
-#endif
-        if (pattern[p_offset] == '?')
-        {
-            p_offset++;
-            s_offset++;
-        }
-        else if (pattern[p_offset] == '#')
-        {
-            if (is_typetag)
-            {
-                switch (s[s_offset])
-                {
-                case 'i':
-                case 'r':
-                case 'f':
-                case 'h':
-                case 't':
-                case 'd':
-                    break;
-                default:
-                    return 0;
-                }
-            }
-            else if (s[s_offset] < '0' || s[s_offset] > '9')
-                return 0;
-            p_offset++;
-            s_offset++;
-        }
-        else if (pattern[p_offset] == 'B')
-        {
-            if (!is_typetag || (s[s_offset] != 'T' && s[s_offset] != 'F'))
-                return 0;
-            p_offset++;
-            s_offset++;
-        }
-        else if (pattern[p_offset] == '*')
-        {
-            while (p_offset < pattern_n && pattern[p_offset] == '*')
-                p_offset++;
-            if (p_offset >= pattern_n || pattern[p_offset] == 0)
-                return 1;
-            while (s_offset < s_n && s[s_offset] != 0 && s[s_offset] != pattern[p_offset])
-                s_offset++;
-            if (s_offset >= s_n || s[s_offset] != pattern[p_offset])
-                return 0;
-            p_offset++;
-            s_offset++;
-        }
-        else if (pattern[p_offset] == '[')
-        {
-            if (!cosc_charset_match(s[s_offset], pattern + p_offset, pattern_n - p_offset, &plen))
-                return 0;
-            s_offset++;
-            p_offset += plen;
-        }
-        else if (pattern[p_offset] == '{')
-        {
-            if (!cosc_stringset_match(s + s_offset, s_n - s_offset,  pattern + p_offset, pattern_n - p_offset, &plen, &slen))
-                return 0;
-            s_offset += slen;
-            p_offset += plen;
-        }
-        else if (s[s_offset] == pattern[p_offset])
-        {
-            p_offset++;
-            s_offset++;
-        }
-        else
-            return 0;
-    }
-#ifndef COSC_NOARRAY
-    if (s_offset < s_n && s[s_offset] == ']')
-        s_offset++;
-#endif
+    cosc_int32 is_typetag = s_n > 0 && s && *s == ',';
+    cosc_int32 s_offset = is_typetag ? 1 : 0;
+    cosc_int32 p_offset = is_typetag && pattern_n > 0 && pattern
+        && *pattern == ',' ? 1 : 0;
 
-    while (p_offset < pattern_n)
-    {
-        if (pattern[p_offset] == '*')
-            p_offset++;
-        else if (pattern[p_offset] == '[')
-        {
-            if (!cosc_charset_match(0, pattern + p_offset, pattern_n - p_offset, &plen))
-                return 0;
-            p_offset += plen;
-        }
-        else if (pattern[p_offset] == '{')
-        {
-            if (!cosc_stringset_match("", 0,  pattern + p_offset, pattern_n - p_offset, &plen, &slen))
-                return 0;
-            s_offset += slen;
-            p_offset += plen;
-        }
-        else if (pattern[p_offset] == 0)
-            break;
-        else
-            return 0;
-    }
-
-    if ((s_offset >= s_n || s[s_offset] == 0)
-        && (p_offset >= pattern_n || pattern[p_offset] == 0))
+    if ((s_n <= 0 || !s || *s == 0)
+        && (pattern_n <= 0 || !pattern || *pattern == 0))
         return 1;
-    return 0;
+    if (!s || !pattern)
+        return 0;
+    return cosc_pattern_match_at(s, s_n, s_offset, pattern, pattern_n,
+        p_offset, is_typetag);
 }
 
 cosc_int32 cosc_signature_match(

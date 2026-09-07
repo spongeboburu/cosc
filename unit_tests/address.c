@@ -24,6 +24,10 @@ static void test_address_invalid(void **state)
     assert_int_equal(invalid, 3);
     assert_false(cosc_address_validate("/blahbl*ah", 1024, &invalid));
     assert_int_equal(invalid, 7);
+    assert_false(cosc_address_validate("hello", 1024, &invalid));
+    assert_int_equal(invalid, 0);
+    assert_false(cosc_address_validate("", 1024, &invalid));
+    assert_int_equal(invalid, 0);
 }
 
 #ifndef COSC_NOPATTERN
@@ -57,6 +61,16 @@ static void test_address_match_digit(void **state)
 {
     assert_true(cosc_pattern_match("/hello/0123456789/world", 1024, "/hello/##########/world", 1024));
 }
+
+static void test_address_match_backtracking(void **state)
+{
+    assert_true(cosc_pattern_match("", 0, "*", 1024));
+    assert_true(cosc_pattern_match("/aab", 1024, "/*ab", 1024));
+    assert_true(cosc_pattern_match("/abc", 1024, "/*?c", 1024));
+    assert_true(cosc_pattern_match("/abc", 1024, "/{a,ab}c", 1024));
+    assert_false(cosc_pattern_match("/a", 1024, "/[]", 1024));
+    assert_true(cosc_pattern_match("/", 1024, "/[]", 1024));
+}
 #endif
 
 int main(void)
@@ -71,6 +85,7 @@ int main(void)
         cmocka_unit_test(test_address_match_charset),
         cmocka_unit_test(test_address_match_stringset),
         cmocka_unit_test(test_address_match_digit),
+        cmocka_unit_test(test_address_match_backtracking),
 #endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
