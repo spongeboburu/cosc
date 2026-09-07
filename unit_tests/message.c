@@ -142,6 +142,7 @@ static void test_message_psize_bounds_values(void **state)
     );
 }
 
+#if !defined(COSC_NOSTDLIB) && !defined(COSC_NODUMP)
 static void test_dumps_are_bounded(void **state)
 {
     char output[128];
@@ -160,6 +161,7 @@ static void test_dumps_are_bounded(void **state)
     assert_int_equal(cosc_message_dump(output, sizeof(output), &message), 21);
     assert_string_equal(output, "<\"ab\" \"cX\" (1)[NULL]>");
 }
+#endif
 
 int main(void)
 {
@@ -168,7 +170,9 @@ int main(void)
         cmocka_unit_test_setup(test_message_psize, func_setup),
         cmocka_unit_test_setup(test_message_size_query, func_setup),
         cmocka_unit_test_setup(test_message_psize_bounds_values, func_setup),
+#if !defined(COSC_NOSTDLIB) && !defined(COSC_NODUMP)
         cmocka_unit_test_setup(test_dumps_are_bounded, func_setup),
+#endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

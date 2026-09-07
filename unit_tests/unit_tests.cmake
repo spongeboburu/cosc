@@ -75,6 +75,7 @@ function(add_unit_test unit_test_name suffix flags)
         EXCLUDE_FROM_ALL TRUE
         )
     target_include_directories(${executable_name} PUBLIC ${install_dir}/include)
+    target_compile_definitions(${executable_name} PUBLIC ${targets_compile_definitions})
     target_compile_options(${executable_name} PUBLIC ${flags})
     target_link_libraries(${executable_name} PUBLIC ${install_dir}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}cmocka-static${CMAKE_STATIC_LIBRARY_SUFFIX})
     add_dependencies(${executable_name} cmocka)
@@ -93,4 +94,3 @@ foreach(unit_test_name ${unit_test_names})
     add_unit_test("${unit_test_name}" "_no64" "-DCOSC_NOINT64 -DCOSC_NOFLOAT64")
     add_unit_test("${unit_test_name}" "_noarray" "-DCOSC_NOARRAY")
 endforeach()
-
