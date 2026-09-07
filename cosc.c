@@ -1002,14 +1002,14 @@ cosc_uint64 cosc_time_to_timetag(
     nanos %= 1000000000;
 #ifdef COSC_NOINT64
     struct cosc_64bits res = COSC_64BITS_INIT(nanos, 0);
-    cosc_add64(&res, 0x20000000);
+    cosc_add64(&res, 500000000);
     cosc_div64(&res, 1000000000);
     COSC_64BITS_HI(&res) = seconds;
     return res;
 #else
     cosc_uint64 tmp = nanos;
     tmp <<= 32;
-    tmp += 0x20000000;
+    tmp += 500000000;
     tmp /= 1000000000;
     tmp |= (cosc_uint64)seconds << 32;
     return tmp;
