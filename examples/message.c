@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
     printf("%d bytes written for %d values.\n", ret, value_count);
 
     // Read it.
+    message.values.read = values;
     cosc_int32 packet_size;
     ret = cosc_read_message(
         buffer, sizeof(buffer), &message,

@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 
     // We could use cosc_writer_message(&serial, &message, NULL) to write
     // an entire message, but we want to nest things in the blob so
-    // let's go for an start message.
+    // let's go for a start message.
     ret = cosc_writer_start_message(&serial, "/address", 1024, ",ibf", 1024);
     if (ret < 0)
     {
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     // With the blob start all other writes will be stored to the blob,
     // but we want a message. We could do it like this:
     // cosc_writer_message(&serial, &message, NULL);
-    // But let's do it with an start message instead.
+    // But let's do it with a start message instead.
     ret = cosc_writer_start_message(&serial, "/nested", 1024, ",i", 1024);
     if (ret < 0)
     {
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
     }
 
     // Now we're back to the first message, let's wrap it up with
-    // it's third and final value of type 'f'.
+    // its third and final value of type 'f'.
     ret = cosc_writer_float32(&serial, 1.5);
     if (ret < 0)
     {
@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
     }
 
     // The bundle.
-    timetag = 0; // Just to make sure we actuall did read it.
+    timetag = 0; // Just to make sure we actually did read it.
     ret = cosc_reader_start_bundle(&serial, &timetag);
     if (ret < 0)
     {
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
     ret = cosc_reader_end_bundle(&serial);
     if (ret < 0)
     {
-        printf("Uh oh, couldn't end the message: %d\n", ret);
+        printf("Uh oh, couldn't end the bundle: %d\n", ret);
         return 1;
     }
     

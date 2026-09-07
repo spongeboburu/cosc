@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     // Write the address.
     ret = cosc_write_string(buffer, sizeof(buffer), "/address", 1024, NULL);
     offset += ret;
-    // Write the address.
+    // Write the typetag.
     ret = cosc_write_string(buffer + offset, sizeof(buffer) - offset, ",if", 1024, NULL);
     offset += ret;
 

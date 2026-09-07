@@ -1,5 +1,5 @@
 /**
- * @brief Example of writing a bundle with 10 message in it.
+ * @brief Example of writing a bundle with 10 messages in it.
  * @file bundle.c
  *
  * ```
@@ -69,9 +69,8 @@ int main(int argc, char *argv[])
         {
             printf("Uh oh, error writing message %d.\n", ret);
             return 2;
-
-            size += ret;
         }
+        size += ret;
     }
 
     // Store the bundle size as the first 4 bytes.
@@ -89,6 +88,8 @@ int main(int argc, char *argv[])
         printf("Uh oh, error reading bundle %d.\n", size);
         return 3;
     }
+
+    message.values.read = values;
 
     // Get the timestamp.
     cosc_uint32 nanos;
