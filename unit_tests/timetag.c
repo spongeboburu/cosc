@@ -108,6 +108,8 @@ static void test_time_to_timetag(void **state)
     assert_int_equal(timetag, 0x0000000a80000000ULL);
     timetag = cosc_time_to_timetag(15, 999999999);
     assert_int_equal(timetag, 0x0000000ffffffffcULL);
+    timetag = cosc_time_to_timetag(0, 5);
+    assert_int_equal(timetag, 21);
 #else
     timetag = cosc_time_to_timetag(0, 0);
     assert_int_equal(COSC_64BITS_HI(&timetag), 0);
@@ -118,6 +120,9 @@ static void test_time_to_timetag(void **state)
     timetag = cosc_time_to_timetag(15, 999999999);
     assert_int_equal(COSC_64BITS_HI(&timetag), 0xf);
     assert_int_equal(COSC_64BITS_LO(&timetag), 0xfffffffcULL);
+    timetag = cosc_time_to_timetag(0, 5);
+    assert_int_equal(COSC_64BITS_HI(&timetag), 0);
+    assert_int_equal(COSC_64BITS_LO(&timetag), 21);
 #endif
 }
 

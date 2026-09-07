@@ -283,113 +283,6 @@ static void cosc_add64(struct cosc_64bits *augend, cosc_uint32 addend)
 
 #ifndef COSC_NOPATTERN
 
-static cosc_int32 cosc_strncmp(const char *a, cosc_int32 a_n, const char *b, cosc_int32 b_n)
-{
-    if (a_n <= 0 && b_n <= 0)
-        return 0;
-    if (a_n <= 0 && b_n > 0 && *b != 0)
-        return -1;
-    if (b_n <= 0 && a_n > 0 && *a != 0)
-        return -1;
-    for (cosc_int32 i = 0; i < a_n && i < b_n; i++)
-    {
-        if (a[i] < b[i])
-            return -1;
-        else if (a[i] > b[i])
-            return 1;
-        if (a[i] == 0)
-            break;
-    }
-    return 0;
-}
-
-static cosc_int32 cosc_charset_match(
-    char character,
-    const char *charset,
-    cosc_int32 charset_n,
-    cosc_int32 *forward
-)
-{
-    cosc_int32 len = 0;
-    if (charset_n < 2 || charset[len] != '[' || !character)
-    {
-        if (forward)
-            *forward = len;
-        return 0;
-    }
-    len++;
-    cosc_int32 found = -1;
-    while (len < charset_n && charset[len] != 0 && charset[len] != ']')
-    {
-        if (charset[len] == character)
-            found = len;
-        len++;
-    }
-    if (len < charset_n && charset[len] == ']'
-        && (found >= 0 || charset[len - 1] == '['))
-    {
-        len++;
-        if (forward)
-            *forward = len;
-        return 1;
-    }
-    if (forward)
-        *forward = len;
-    return 0;
-}
-
-static cosc_int32 cosc_stringset_match(
-    const char *s,
-    cosc_int32 s_n,
-    const char *stringset,
-    cosc_int32 stringset_n,
-    cosc_int32 *forward,
-    cosc_int32 *s_forward
-)
-{
-    cosc_int32 len = 0, slen = 0;
-    if (stringset_n < 2 || stringset[len] != '{')
-    {
-        if (forward)
-            *forward = 0;
-        if (s_forward)
-            *s_forward = 0;
-        return 0;
-    }
-    len++;
-    while (len < stringset_n && stringset[len] != 0 && stringset[len] != '}')
-    {
-        cosc_int32 end = len;
-        while (end < stringset_n && stringset[end] != 0 && stringset[end] != '}' && stringset[end] != ',')
-            end++;
-        slen = end - len;
-        if (cosc_strncmp(stringset + len, slen, s, s_n) == 0)
-        {
-            len = end;
-            while (len < stringset_n && stringset[len] != 0 && stringset[len] != '}')
-                len++;
-            break;
-        }
-        else
-            slen = 0;
-        len = end + 1;
-    }
-    if (len < stringset_n && stringset[len] == '}')
-    {
-        len++;
-        if (forward)
-            *forward = len;
-        if (s_forward)
-            *s_forward = slen;
-        return 1;
-    }
-    if (forward)
-        *forward = len;
-    if (s_forward)
-        *s_forward = 0;
-    return 0;
-}
-
 #endif /* !COSC_NOPATTERN */
 
 static cosc_int32 cosc_type_is_valid(
@@ -578,11 +471,17 @@ cosc_int32 cosc_address_validate(
 )
 {
     cosc_int32 len = 0;
-    if (address_n <= 0 || *address == 0)
+    if (address_n <= 0 || !address || *address == 0)
     {
         if (invalid)
-            *invalid = -1;
-        return 1;
+            *invalid = 0;
+        return 0;
+    }
+    if (address[0] != '/')
+    {
+        if (invalid)
+            *invalid = 0;
+        return 0;
     }
     while (len < address_n && address[len] != 0)
     {
@@ -638,8 +537,6 @@ cosc_int32 cosc_typetag_validate(
     while (len < typetag_n && typetag[len] != 0)
     {
 #ifndef COSC_NOARRAY
-        if (array == ']')
-            break;
         if (typetag[len] == '[')
         {
             if (array)
@@ -654,8 +551,14 @@ cosc_int32 cosc_typetag_validate(
         }
         if (typetag[len] == ']')
         {
+            if (array != '[')
+            {
+                if (invalid)
+                    *invalid = len;
+                return 0;
+            }
             len++;
-            array = ']';
+            array = 0;
             continue;
         }
 #endif
@@ -734,7 +637,7 @@ cosc_int32 cosc_pattern_char_validate(
     cosc_int32 c
 )
 {
-    return cosc_type_is_valid(c, 1);
+    return cosc_type_is_valid(c, 1) || c == ']' || c == '}';
 }
 
 cosc_int32 cosc_pattern_validate(
@@ -798,6 +701,134 @@ cosc_int32 cosc_pattern_validate(
     return 1;
 }
 
+static cosc_int32 cosc_pattern_match_at(
+    const char *s,
+    cosc_int32 s_n,
+    cosc_int32 s_offset,
+    const char *pattern,
+    cosc_int32 pattern_n,
+    cosc_int32 p_offset,
+    cosc_int32 is_typetag
+)
+{
+    cosc_int32 end, start;
+
+#ifndef COSC_NOARRAY
+    if (is_typetag)
+    {
+        while (s_offset < s_n && (s[s_offset] == '[' || s[s_offset] == ']'))
+            s_offset++;
+    }
+#endif
+
+    if (p_offset >= pattern_n || pattern[p_offset] == 0)
+        return s_offset >= s_n || s[s_offset] == 0;
+
+    if (pattern[p_offset] == '*')
+    {
+        if (cosc_pattern_match_at(s, s_n, s_offset, pattern, pattern_n,
+                p_offset + 1, is_typetag))
+            return 1;
+        if (s_offset < s_n && s[s_offset] != 0)
+            return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+                pattern_n, p_offset, is_typetag);
+        return 0;
+    }
+
+    if (pattern[p_offset] == '[')
+    {
+        start = p_offset + 1;
+        end = start;
+        while (end < pattern_n && pattern[end] != 0 && pattern[end] != ']')
+            end++;
+        if (end >= pattern_n || pattern[end] != ']')
+            return 0;
+        if (start == end)
+            return cosc_pattern_match_at(s, s_n, s_offset, pattern,
+                pattern_n, end + 1, is_typetag);
+        if (s_offset >= s_n || s[s_offset] == 0)
+            return 0;
+        for (cosc_int32 i = start; i < end; i++)
+        {
+            if (s[s_offset] == pattern[i])
+                return cosc_pattern_match_at(s, s_n, s_offset + 1,
+                    pattern, pattern_n, end + 1, is_typetag);
+        }
+        return 0;
+    }
+
+    if (pattern[p_offset] == '{')
+    {
+        start = p_offset + 1;
+        end = start;
+        while (end < pattern_n && pattern[end] != 0 && pattern[end] != '}')
+            end++;
+        if (end >= pattern_n || pattern[end] != '}')
+            return 0;
+        while (start <= end)
+        {
+            cosc_int32 candidate_end = start;
+            while (candidate_end < end && pattern[candidate_end] != ',')
+                candidate_end++;
+            if (candidate_end - start <= s_n - s_offset)
+            {
+                cosc_int32 equal = 1;
+                for (cosc_int32 i = 0; i < candidate_end - start; i++)
+                {
+                    if (s_offset + i >= s_n || s[s_offset + i] == 0
+                        || s[s_offset + i] != pattern[start + i])
+                    {
+                        equal = 0;
+                        break;
+                    }
+                }
+                if (equal && cosc_pattern_match_at(s, s_n,
+                        s_offset + candidate_end - start, pattern,
+                        pattern_n, end + 1, is_typetag))
+                    return 1;
+            }
+            if (candidate_end == end)
+                break;
+            start = candidate_end + 1;
+        }
+        return 0;
+    }
+
+    if (s_offset >= s_n || s[s_offset] == 0)
+        return 0;
+    if (pattern[p_offset] == '?')
+        return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+            pattern_n, p_offset + 1, is_typetag);
+    if (pattern[p_offset] == '#')
+    {
+        if (is_typetag)
+        {
+            switch (s[s_offset])
+            {
+            case 'i': case 'r': case 'f': case 'h': case 't': case 'd':
+                break;
+            default:
+                return 0;
+            }
+        }
+        else if (s[s_offset] < '0' || s[s_offset] > '9')
+            return 0;
+        return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+            pattern_n, p_offset + 1, is_typetag);
+    }
+    if (pattern[p_offset] == 'B')
+    {
+        if (!is_typetag || (s[s_offset] != 'T' && s[s_offset] != 'F'))
+            return 0;
+        return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+            pattern_n, p_offset + 1, is_typetag);
+    }
+    if (s[s_offset] != pattern[p_offset])
+        return 0;
+    return cosc_pattern_match_at(s, s_n, s_offset + 1, pattern,
+        pattern_n, p_offset + 1, is_typetag);
+}
+
 cosc_int32 cosc_pattern_match(
     const char *s,
     cosc_int32 s_n,
@@ -805,131 +836,18 @@ cosc_int32 cosc_pattern_match(
     cosc_int32 pattern_n
 )
 {
-    cosc_int32 s_offset = 0, p_offset = 0, slen, plen;
-    char is_typetag;
-    if ((s_n <= 0 || *s == 0) && (pattern_n <= 0 || *pattern == 0))
-        return 1;
-    if (s_n > 0 && *s == ',')
-    {
-        is_typetag = 1;
-        s_offset++;
-    }
-    else
-        is_typetag = 0;
-    if (pattern_n > 0 && *pattern == ',' && is_typetag)
-        p_offset++;
-    while (
-        s_offset < s_n && s[s_offset] != 0
-        && p_offset < pattern_n && pattern[p_offset] != 0)
-    {
-#ifndef COSC_NOARRAY
-        if (is_typetag && (s[s_offset] == '[' || s[s_offset] == ']'))
-        {
-            s_offset++;
-            continue;
-        }
-#endif
-        if (pattern[p_offset] == '?')
-        {
-            p_offset++;
-            s_offset++;
-        }
-        else if (pattern[p_offset] == '#')
-        {
-            if (is_typetag)
-            {
-                switch (s[s_offset])
-                {
-                case 'i':
-                case 'r':
-                case 'f':
-                case 'h':
-                case 't':
-                case 'd':
-                    break;
-                default:
-                    return 0;
-                }
-            }
-            else if (s[s_offset] < '0' || s[s_offset] > '9')
-                return 0;
-            p_offset++;
-            s_offset++;
-        }
-        else if (pattern[p_offset] == 'B')
-        {
-            if (!is_typetag || (s[s_offset] != 'T' && s[s_offset] != 'F'))
-                return 0;
-            p_offset++;
-            s_offset++;
-        }
-        else if (pattern[p_offset] == '*')
-        {
-            while (p_offset < pattern_n && pattern[p_offset] == '*')
-                p_offset++;
-            if (p_offset >= pattern_n || pattern[p_offset] == 0)
-                return 1;
-            while (s_offset < s_n && s[s_offset] != 0 && s[s_offset] != pattern[p_offset])
-                s_offset++;
-            if (s_offset >= s_n || s[s_offset] != pattern[p_offset])
-                return 0;
-            p_offset++;
-            s_offset++;
-        }
-        else if (pattern[p_offset] == '[')
-        {
-            if (!cosc_charset_match(s[s_offset], pattern + p_offset, pattern_n - p_offset, &plen))
-                return 0;
-            s_offset++;
-            p_offset += plen;
-        }
-        else if (pattern[p_offset] == '{')
-        {
-            if (!cosc_stringset_match(s + s_offset, s_n - s_offset,  pattern + p_offset, pattern_n - p_offset, &plen, &slen))
-                return 0;
-            s_offset += slen;
-            p_offset += plen;
-        }
-        else if (s[s_offset] == pattern[p_offset])
-        {
-            p_offset++;
-            s_offset++;
-        }
-        else
-            return 0;
-    }
-#ifndef COSC_NOARRAY
-    if (s_offset < s_n && s[s_offset] == ']')
-        s_offset++;
-#endif
+    cosc_int32 is_typetag = s_n > 0 && s && *s == ',';
+    cosc_int32 s_offset = is_typetag ? 1 : 0;
+    cosc_int32 p_offset = is_typetag && pattern_n > 0 && pattern
+        && *pattern == ',' ? 1 : 0;
 
-    while (p_offset < pattern_n)
-    {
-        if (pattern[p_offset] == '*')
-            p_offset++;
-        else if (pattern[p_offset] == '[')
-        {
-            if (!cosc_charset_match(0, pattern + p_offset, pattern_n - p_offset, &plen))
-                return 0;
-            p_offset += plen;
-        }
-        else if (pattern[p_offset] == '{')
-        {
-            if (!cosc_stringset_match("", 0,  pattern + p_offset, pattern_n - p_offset, &plen, &slen))
-                return 0;
-            s_offset += slen;
-            p_offset += plen;
-        }
-        else if (pattern[p_offset] == 0)
-            break;
-        else
-            return 0;
-    }
-
-    if ((s_offset >= s_n || s[s_offset] == 0)
-        && (p_offset >= pattern_n || pattern[p_offset] == 0))
+    if ((s_n <= 0 || !s || *s == 0)
+        && (pattern_n <= 0 || !pattern || *pattern == 0))
         return 1;
-    return 0;
+    if (!s || !pattern)
+        return 0;
+    return cosc_pattern_match_at(s, s_n, s_offset, pattern, pattern_n,
+        p_offset, is_typetag);
 }
 
 cosc_int32 cosc_signature_match(
@@ -948,9 +866,11 @@ cosc_int32 cosc_signature_match(
         if (size < 12)
             return 0;
         prefix = cosc_load_int32(buffer);
-        if (prefix < 8 || prefix > COSC_SIZE_MAX - 8 || COSC_PAD(prefix))
+        if (prefix < 8 || prefix > size - 4
+            || prefix > COSC_SIZE_MAX - 8 || COSC_PAD(prefix))
             return 0;
         buffer = (const char *)buffer + 4;
+        size = prefix;
     }
     else if (size < 8)
         return 0;
@@ -1002,14 +922,14 @@ cosc_uint64 cosc_time_to_timetag(
     nanos %= 1000000000;
 #ifdef COSC_NOINT64
     struct cosc_64bits res = COSC_64BITS_INIT(nanos, 0);
-    cosc_add64(&res, 0x20000000);
+    cosc_add64(&res, 500000000);
     cosc_div64(&res, 1000000000);
     COSC_64BITS_HI(&res) = seconds;
     return res;
 #else
     cosc_uint64 tmp = nanos;
     tmp <<= 32;
-    tmp += 0x20000000;
+    tmp += 500000000;
     tmp /= 1000000000;
     tmp |= (cosc_uint64)seconds << 32;
     return tmp;
@@ -1038,34 +958,93 @@ cosc_float32 cosc_float64_to_float32(
 #else
     struct cosc_64bits bits = value;
 #endif
-    // FIXME: sub normal numbers.
     cosc_uint32 sign = COSC_64BITS_HI(&bits) & 0x80000000;
     cosc_int32 exponent = (COSC_64BITS_HI(&bits) >> 20) & 0x7ff;
-    cosc_uint32 fraction = (COSC_64BITS_HI(&bits) & 0xfffff) << 3;
-    fraction |= COSC_64BITS_LO(&bits) >> 29;
+    cosc_uint32 significand_hi = COSC_64BITS_HI(&bits) & 0xfffff;
+    cosc_uint32 significand_lo = COSC_64BITS_LO(&bits);
+    cosc_uint32 fraction;
     if (exponent >= 0x7ff)
     {
         exponent = 0xff;
+        fraction = significand_hi << 3;
+        fraction |= significand_lo >> 29;
+        if (fraction)
+            fraction |= 0x400000;
+    }
+    else if (exponent == 0)
+    {
+        exponent = 0;
         fraction = 0;
     }
-    else if (exponent > 0)
+    else
     {
         exponent -= 1023;
         exponent += 127;
-        int round = (COSC_64BITS_LO(&bits) << 3) >= 0x80000000;
-        if (round)
+        significand_hi |= 0x100000;
+        if (exponent > 0)
         {
-            fraction++;
-            if (fraction > 0x7fffff)
+            fraction = significand_hi << 3;
+            fraction |= significand_lo >> 29;
+            if ((significand_lo & 0x10000000)
+                && ((significand_lo & 0x0fffffff) || (fraction & 1)))
+                fraction++;
+            if (fraction >= 0x1000000)
             {
                 exponent++;
-                fraction &= fraction;
+                fraction = 0;
                 if (exponent >= 0xff)
                 {
                     exponent = 0xff;
                     fraction = 0;
                 }
             }
+            else
+                fraction &= 0x7fffff;
+        }
+        else
+        {
+            cosc_int32 shift = 30 - exponent;
+            cosc_uint32 round_bit = 0;
+            cosc_uint32 sticky = 0;
+
+            if (shift < 32)
+            {
+                fraction = (significand_hi << (32 - shift))
+                    | (significand_lo >> shift);
+                round_bit = (significand_lo >> (shift - 1)) & 1;
+                if (shift > 1)
+                    sticky = significand_lo & ((1U << (shift - 1)) - 1);
+            }
+            else if (shift == 32)
+            {
+                fraction = significand_hi;
+                round_bit = significand_lo >> 31;
+                sticky = significand_lo & 0x7fffffff;
+            }
+            else if (shift <= 53)
+            {
+                cosc_int32 low_bits = shift - 32;
+                fraction = significand_hi >> low_bits;
+                round_bit = (significand_hi >> (low_bits - 1)) & 1;
+                sticky = significand_lo;
+                if (low_bits > 1)
+                    sticky |= significand_hi & ((1U << (low_bits - 1)) - 1);
+            }
+            else
+            {
+                fraction = 0;
+            }
+
+            if (round_bit && (sticky || (fraction & 1)))
+                fraction++;
+
+            if (fraction >= 0x800000)
+            {
+                exponent = 1;
+                fraction = 0;
+            }
+            else
+                exponent = 0;
         }
     }
     uint32_t ret = sign | ((cosc_uint32)exponent << 23) | fraction;
@@ -1091,9 +1070,61 @@ cosc_float64 cosc_float32_to_float64(
     if (exponent == 0xff)
     {
         exponent = 0x7ff;
-        fraction = 0;
+        if (fraction)
+            fraction |= 0x400000;
     }
-    else if (exponent > 0)
+    else if (exponent == 0)
+    {
+        if (fraction == 0)
+        {
+            struct cosc_64bits ret = COSC_64BITS_INIT(sign, 0);
+#ifndef COSC_NOFLOAT64
+            if (!cosc_big_endian())
+            {
+                cosc_uint32 tmp = COSC_64BITS_HI(&ret);
+                COSC_64BITS_HI(&ret) = COSC_64BITS_LO(&ret);
+                COSC_64BITS_LO(&ret) = tmp;
+            }
+            return COSC_PUN(struct cosc_64bits, cosc_float64, ret);
+#else
+            return ret;
+#endif
+        }
+
+        cosc_int32 leading = 22;
+        while ((fraction & ((cosc_uint32)1 << leading)) == 0)
+            leading--;
+        exponent = leading + 874;
+        fraction -= (cosc_uint32)1 << leading;
+
+        cosc_int32 shift = 52 - leading;
+        struct cosc_64bits ret;
+        if (shift >= 32)
+        {
+            COSC_64BITS_SET(&ret, 0, 0);
+            COSC_64BITS_HI(&ret) = sign | ((cosc_uint32)exponent << 20)
+                | (fraction << (shift - 32));
+        }
+        else
+        {
+            COSC_64BITS_SET(&ret, 0, 0);
+            COSC_64BITS_HI(&ret) = sign | ((cosc_uint32)exponent << 20)
+                | (fraction >> (32 - shift));
+            COSC_64BITS_LO(&ret) = fraction << shift;
+        }
+#ifndef COSC_NOFLOAT64
+        if (!cosc_big_endian())
+        {
+            cosc_uint32 tmp = COSC_64BITS_HI(&ret);
+            COSC_64BITS_HI(&ret) = COSC_64BITS_LO(&ret);
+            COSC_64BITS_LO(&ret) = tmp;
+        }
+        return COSC_PUN(struct cosc_64bits, cosc_float64, ret);
+#else
+        return ret;
+#endif
+    }
+    else
     {
         exponent -= 127;
         exponent += 1023;
@@ -1578,7 +1609,7 @@ cosc_int32 cosc_write_signature(
         if (psize < 8 || COSC_PAD(psize))
             return COSC_EPSIZE;
     }
-    if (buffer && size < 12)
+    if (buffer && psize != 0 && size < 4)
         return COSC_EOVERRUN;
     if (psize != 0)
         req += 4;
@@ -1604,10 +1635,14 @@ cosc_int32 cosc_write_signature(
     {
         if (psize < req - 4 || COSC_PAD(psize) || psize > COSC_SIZE_MAX - 4)
             return COSC_EPSIZE;
-        cosc_store_int32(buffer, psize);
+        if (buffer)
+            cosc_store_int32(buffer, psize);
     }
     else if (psize < 0)
-        cosc_store_int32(buffer, req - 4);
+    {
+        if (buffer)
+            cosc_store_int32(buffer, req - 4);
+    }
     return req;
 }
 
@@ -1621,27 +1656,28 @@ cosc_int32 cosc_read_signature(
     cosc_int32 *psize
 )
 {
-    cosc_int32 req = 0, sz;
+    cosc_int32 req = 0, sz, available = size;
     if (size < 8)
         return COSC_EOVERRUN;
     if (psize)
     {
         *psize = cosc_load_int32(buffer);
-        if (*psize < 8 || *psize > COSC_SIZE_MAX - 8 || COSC_PAD(*psize))
+        if (*psize < 8 || *psize > COSC_SIZE_MAX - 4 || COSC_PAD(*psize))
             return COSC_EPSIZE;
         if (*psize > size - 4)
             return COSC_EOVERRUN;
         req += 4;
+        available = *psize + 4;
     }
     if (address)
         *address = (const char *)buffer + req;
-    sz = cosc_read_string((const char *)buffer + req, size - req, 0, 0, address_n);
+    sz = cosc_read_string((const char *)buffer + req, available - req, 0, 0, address_n);
     if (sz < 0)
         return sz;
     req += sz;
     if (typetag)
         *typetag = (const char *)buffer + req;
-    sz = cosc_read_string((const char *)buffer + req, size - req, 0, 0, typetag_n);
+    sz = cosc_read_string((const char *)buffer + req, available - req, 0, 0, typetag_n);
     if (sz < 0)
         return sz;
     req += sz;
@@ -1949,7 +1985,7 @@ cosc_int32 cosc_write_message(
     }
     req += sz;
     sz = cosc_write_values(
-        (unsigned char *)buffer + req, size - req,
+        buffer ? (unsigned char *)buffer + req : 0, buffer ? size - req : 0,
         message->typetag, message->typetag_n,
         message->values.write, message->values_n,
         value_count
@@ -1963,10 +1999,14 @@ cosc_int32 cosc_write_message(
     {
         if (psize < req - 4 || COSC_PAD(psize) || psize > COSC_SIZE_MAX - 4)
             return COSC_EPSIZE;
-        cosc_write_int32(buffer, 4, psize);
+        if (buffer)
+            cosc_write_int32(buffer, 4, psize);
     }
     else if (psize < 0)
-        cosc_write_int32(buffer, 4, req - 4);
+    {
+        if (buffer)
+            cosc_write_int32(buffer, 4, req - 4);
+    }
     return req;
 }
 
@@ -1980,7 +2020,7 @@ cosc_int32 cosc_read_message(
 )
 {
     cosc_int32 req = 0, sz;
-    struct cosc_message tmp_message;
+    struct cosc_message tmp_message = {0};
     if (!message)
         message = &tmp_message;
     sz = cosc_read_signature(
@@ -2005,7 +2045,9 @@ cosc_int32 cosc_read_message(
         return COSC_SIZE_MAX;
     }
     req += sz;
-    buffer = (char *)buffer + sz;
+    buffer = (const char *)buffer + sz;
+    if (psize)
+        size = *psize + 4;
     sz = cosc_read_values(
         buffer, size - req,
         message->typetag, message->typetag_n,
@@ -2059,7 +2101,11 @@ cosc_int32 cosc_value_dump(
     case 'f': return snprintf(s, n, "%f", value->f);
 #endif
     case 'S':
-    case 's': return snprintf(s, n, "\"%s\"", value->s.s ? value->s.s : "");
+    case 's':
+    {
+        cosc_int32 length = value->s.length > 0 ? value->s.length : 0;
+        return snprintf(s, n, "\"%.*s\"", length, value->s.s ? value->s.s : "");
+    }
 #ifdef COSC_NOINT64
     case 'h': return snprintf(s, n, "0x%08x %08x", COSC_64BITS_HI(&value->h), COSC_64BITS_LO(&value->h));
     case 't': return snprintf(s, n, "0x%08x %08x", COSC_64BITS_HI(&value->t), COSC_64BITS_LO(&value->t));
@@ -2068,7 +2114,7 @@ cosc_int32 cosc_value_dump(
     case 't': return snprintf(s, n, "%" PRIu64, value->t);
 #endif
 #ifdef COSC_NOFLOAT64
-    case 'd': return snprintf(s, n, "0x%08x %08x" PRIx64, COSC_64BITS_LO(&value->d), COSC_64BITS_HI(&value->d));
+    case 'd': return snprintf(s, n, "0x%08x %08x", COSC_64BITS_HI(&value->d), COSC_64BITS_LO(&value->d));
 #else
     case 'd': return snprintf(s, n, "%f", value->d);
 #endif
@@ -2086,11 +2132,12 @@ cosc_int32 cosc_value_dump(
 
     if (type == 'b')
     {
-        cosc_int32 len = snprintf(s, n, "(%d){", value->b.size);
-        if (value->b.size > 0)
-            len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, "%02x", ((unsigned char *)value->b.b)[0]);
-        for (int32_t i = 1; i < value->b.size; i++)
-            len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, " %02x", ((unsigned char *)value->b.b)[i]);
+        cosc_int32 size = value->b.size > 0 ? value->b.size : 0;
+        cosc_int32 len = snprintf(s, n, "(%d){", size);
+        for (cosc_int32 i = 0; i < size; i++)
+            len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0,
+                i ? " %02x" : "%02x",
+                value->b.b ? ((const unsigned char *)value->b.b)[i] : 0);
         len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, "}");
         return len;
     }
@@ -2114,12 +2161,16 @@ cosc_int32 cosc_message_dump(
     if (!message)
         return snprintf(s, n, "NULL");
     cosc_int32 value_count = cosc_typetag_payload(0, 0, message->typetag, message->typetag_n, 0);
-    if (value_count > message->values_n)
+    if (value_count < 0)
+        value_count = 0;
+    else if (value_count > message->values_n)
         value_count = message->values_n;
     cosc_int32 len = 0;
     len += snprintf(
-        len < n ? s + len : 0, len < n ? n - len : 0, "<\"%s\" \"%s\" (%d)[",
+        len < n ? s + len : 0, len < n ? n - len : 0, "<\"%.*s\" \"%.*s\" (%d)[",
+        message->address_n > 0 ? message->address_n : 0,
         message->address ? message->address : "",
+        message->typetag_n > 0 ? message->typetag_n : 0,
         message->typetag ? message->typetag : "",
         value_count
     );
@@ -2132,7 +2183,11 @@ cosc_int32 cosc_message_dump(
             break;
         if (i > 0)
             len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, ", ");
-        len += cosc_value_dump(len < n ? s + len : 0, len < n ? n - len : 0, message->typetag[tindex], message->values.read + i);
+        len += cosc_value_dump(
+            len < n ? s + len : 0, len < n ? n - len : 0,
+            message->typetag[tindex],
+            message->values.read ? message->values.read + i : 0
+        );
         tindex++;
     }
     len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, "]>");
@@ -2212,43 +2267,58 @@ static cosc_int32 cosc_serial_get_offset(
     return serial->levels[serial->level].start + serial->levels[serial->level].size;
 }
 
-static cosc_int32 cosc_serial_start_level(
-    struct cosc_serial *serial,
+static cosc_int32 cosc_serial_can_start_level(
+    const struct cosc_serial *serial,
     cosc_int32 level_type
 )
 {
     if (serial->level >= serial->level_max - 1)
         return COSC_ELEVELMAX;
+    if (serial->level < 0)
+    {
+        if (level_type == COSC_LEVEL_TYPE_BLOB)
+            return COSC_ELEVELTYPE;
+        return 0;
+    }
+    if (level_type == COSC_LEVEL_TYPE_BLOB)
+    {
+        if (serial->levels[serial->level].type == COSC_LEVEL_TYPE_MESSAGE)
+            return cosc_serial_get_msgtype(serial) == 'b' ? 0 : COSC_EMSGTYPE;
+        return serial->levels[serial->level].type == COSC_LEVEL_TYPE_BLOB
+            ? 0 : COSC_ELEVELTYPE;
+    }
+    if (level_type == COSC_LEVEL_TYPE_BUNDLE)
+        return serial->levels[serial->level].type == COSC_LEVEL_TYPE_BLOB
+            ? 0 : COSC_ELEVELTYPE;
+    if (level_type == COSC_LEVEL_TYPE_MESSAGE)
+        return serial->levels[serial->level].type == COSC_LEVEL_TYPE_BUNDLE
+            || serial->levels[serial->level].type == COSC_LEVEL_TYPE_BLOB
+            ? 0 : COSC_ELEVELTYPE;
+    return COSC_ELEVELTYPE;
+}
+
+static cosc_int32 cosc_serial_start_level(
+    struct cosc_serial *serial,
+    cosc_int32 level_type
+)
+{
+    cosc_int32 allowed = cosc_serial_can_start_level(serial, level_type);
+    if (allowed < 0)
+        return allowed;
     cosc_int32 req_size = 0;
     switch (level_type)
     {
     case COSC_LEVEL_TYPE_BUNDLE:
-        if (serial->level >= 0
-            && serial->levels[serial->level].type != COSC_LEVEL_TYPE_BLOB)
-            return COSC_ELEVELTYPE;
         if (serial->level < 0 && serial->size > 0 && !(serial->flags & COSC_SERIAL_PSIZE))
             return COSC_EPSIZEFLAG;
         req_size = 16;
         break;
     case COSC_LEVEL_TYPE_MESSAGE:
-        if (serial->level >= 0
-            && serial->levels[serial->level].type != COSC_LEVEL_TYPE_BUNDLE
-            && serial->levels[serial->level].type != COSC_LEVEL_TYPE_BLOB)
-            return COSC_ELEVELTYPE;
         if (serial->level < 0 && serial->size > 0 && !(serial->flags & COSC_SERIAL_PSIZE))
             return COSC_EPSIZEFLAG;
         req_size = 8;
         break;
     case COSC_LEVEL_TYPE_BLOB:
-        if (serial->level < 0)
-            return COSC_ELEVELTYPE;
-        if (serial->levels[serial->level].type == COSC_LEVEL_TYPE_MESSAGE)
-        {
-            if (cosc_serial_get_msgtype(serial) != 'b')
-                return COSC_EMSGTYPE;
-        }
-        else if (serial->levels[serial->level].type != COSC_LEVEL_TYPE_BLOB)
-            return COSC_ELEVELTYPE;
         break;
     default:
         return COSC_ELEVELTYPE;
@@ -2425,6 +2495,9 @@ cosc_int32 cosc_writer_start_bundle(
     cosc_int32 use_psize = COSC_SERIAL_DOPSIZE(serial);
     if (!use_psize && serial->size > 0)
         return COSC_EPSIZEFLAG;
+    cosc_int32 allowed = cosc_serial_can_start_level(serial, COSC_LEVEL_TYPE_BUNDLE);
+    if (allowed < 0)
+        return allowed;
     cosc_int32 available = cosc_serial_get_available(serial);
     cosc_int32 offset = cosc_serial_get_offset(serial);
     cosc_int32 sz = cosc_write_bundle(serial->wbuffer + offset, available, timetag, use_psize ? -1 : 0);
@@ -2463,6 +2536,9 @@ cosc_int32 cosc_writer_start_message(
         return COSC_EINVAL;
     if (!cosc_typetag_validate(typetag, typetag_n, 0))
         return COSC_ETYPE;
+    cosc_int32 allowed = cosc_serial_can_start_level(serial, COSC_LEVEL_TYPE_MESSAGE);
+    if (allowed < 0)
+        return allowed;
     cosc_int32 use_psize = COSC_SERIAL_DOPSIZE(serial);
     if (!use_psize && serial->size > 0)
         return COSC_EPSIZEFLAG;
@@ -2526,6 +2602,9 @@ cosc_int32 cosc_writer_start_blob(
 {
     if (!COSC_SERIAL_ISWRITER(serial))
         return COSC_EINVAL;
+    cosc_int32 allowed = cosc_serial_can_start_level(serial, COSC_LEVEL_TYPE_BLOB);
+    if (allowed < 0)
+        return allowed;
     cosc_int32 available = cosc_serial_get_available(serial);
     cosc_int32 offset = cosc_serial_get_offset(serial);
     cosc_int32 sz = cosc_write_int32(serial->wbuffer + offset, available, 0);
@@ -2745,6 +2824,11 @@ cosc_int32 cosc_writer_value(
     case 'F':
     case 'N':
     case 'I':
+        {
+            cosc_int32 offset = cosc_serial_accepts(serial, type);
+            if (offset < 0)
+                return offset;
+        }
         cosc_serial_next_msgtype(serial);
         return 0;
     }
@@ -2861,9 +2945,14 @@ cosc_int32 cosc_reader_peek_bundle(
 {
     if (!COSC_SERIAL_ISREADER(serial))
         return COSC_EINVAL;
+    if (serial->level >= 0
+        && serial->levels[serial->level].type != COSC_LEVEL_TYPE_BLOB)
+        return COSC_ELEVELTYPE;
+    cosc_int32 use_psize = COSC_SERIAL_DOPSIZE(serial);
+    if (!use_psize && serial->size > 0)
+        return COSC_EPSIZEFLAG;
     cosc_int32 available = cosc_serial_get_available(serial);
     cosc_int32 offset = cosc_serial_get_offset(serial);
-    cosc_int32 use_psize = COSC_SERIAL_DOPSIZE(serial);
     cosc_int32 tmp_psize = 0;
     cosc_int32 sz = cosc_read_bundle(serial->rbuffer + offset, available, timetag, use_psize ? &tmp_psize : 0);
     if (sz < 0)
@@ -2885,6 +2974,9 @@ cosc_int32 cosc_reader_start_bundle(
     cosc_int32 use_psize = COSC_SERIAL_DOPSIZE(serial);
     if (!use_psize && serial->size > 0)
         return COSC_EPSIZEFLAG;
+    cosc_int32 allowed = cosc_serial_can_start_level(serial, COSC_LEVEL_TYPE_BUNDLE);
+    if (allowed < 0)
+        return allowed;
     cosc_int32 available = cosc_serial_get_available(serial);
     cosc_int32 offset = cosc_serial_get_offset(serial);
     cosc_int32 psize = 0;
@@ -2929,6 +3021,9 @@ cosc_int32 cosc_reader_start_message(
     cosc_int32 use_psize = (serial->level >= 0 || (serial->flags & COSC_SERIAL_PSIZE));
     if (!use_psize && serial->size > 0)
         return COSC_EPSIZEFLAG;
+    cosc_int32 allowed = cosc_serial_can_start_level(serial, COSC_LEVEL_TYPE_MESSAGE);
+    if (allowed < 0)
+        return allowed;
     cosc_int32 available = cosc_serial_get_available(serial);
     cosc_int32 offset = cosc_serial_get_offset(serial);
     cosc_int32 req = 0, psize = 0;
@@ -2941,13 +3036,14 @@ cosc_int32 cosc_reader_start_message(
             return COSC_EPSIZE;
         req += 4;
     }
-    cosc_int32 address_size = cosc_read_string(serial->rbuffer + offset + req, available - req, 0, 0, address_n);
+    cosc_int32 message_available = use_psize ? psize + 4 : available;
+    cosc_int32 address_size = cosc_read_string(serial->rbuffer + offset + req, message_available - req, 0, 0, address_n);
     if (address_size < 0)
         return address_size;
     if (address)
         *address = (const char *)serial->rbuffer + offset + req;
     req += address_size;
-    cosc_int32 typetag_size = cosc_read_string(serial->rbuffer + offset + req, available - req, 0, 0, typetag_n);
+    cosc_int32 typetag_size = cosc_read_string(serial->rbuffer + offset + req, message_available - req, 0, 0, typetag_n);
     if (typetag_size < 0)
         return typetag_size;
     if (typetag)
@@ -3008,14 +3104,19 @@ cosc_int32 cosc_reader_start_blob(
 {
     if (!COSC_SERIAL_ISREADER(serial))
         return COSC_EINVAL;
+    cosc_int32 allowed = cosc_serial_can_start_level(serial, COSC_LEVEL_TYPE_BLOB);
+    if (allowed < 0)
+        return allowed;
     cosc_int32 available = cosc_serial_get_available(serial);
     cosc_int32 offset = cosc_serial_get_offset(serial);
     cosc_int32 psize;
     cosc_int32 sz = cosc_read_int32(serial->rbuffer + offset, available, &psize);
     if (sz < 0)
         return sz;
+    if (psize < 0 || psize > COSC_SIZE_MAX - 4)
+        return COSC_EPSIZE;
     cosc_int32 pad = COSC_PAD(psize);
-    if (psize > available - pad)
+    if (psize > available - pad - 4)
         return COSC_EOVERRUN;
     cosc_int32 level = cosc_serial_start_level(serial, COSC_LEVEL_TYPE_BLOB);
     if (level < 0)
@@ -3226,6 +3327,11 @@ cosc_int32 cosc_reader_value(
     case 'F':
     case 'N':
     case 'I':
+        {
+            cosc_int32 offset = cosc_serial_accepts(serial, type);
+            if (offset < 0)
+                return offset;
+        }
         cosc_serial_next_msgtype(serial);
         return 0;
     }

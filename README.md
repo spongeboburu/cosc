@@ -7,7 +7,7 @@ of reading/writing data, see <https://opensoundcontrol.stanford.edu/spec-1_0.htm
 
 For example as RPC over UDP in projects like
 <https://supercollider.github.io/>, but it can be used in any event
-driven system due to it's simple design. Since I've used OSC a lot in
+driven system due to its simple design. Since I've used OSC a lot in
 recent work I thought this would be fun project to tinker with on my
 spare time and hopefully someone finds it useful.
 
@@ -43,9 +43,9 @@ perhaps <https://liblo.sourceforge.net/> is a better choice.
 - Only one array per message.
 - Arrays must be at the end of the message.
 
-Because the OSC specifications does not describe how arrays should
+Because the OSC specification does not describe how arrays should
 be specified and does not give any examples this implementation is
-mostly guess work. The fact that the length of the array is unspecified,
+mostly guesswork. The fact that the length of the array is unspecified,
 unlike BLOBs for example, makes it very difficult to implement in a
 flexible way which is why many implementations do not support arrays.
 
@@ -70,7 +70,7 @@ may provide a modest performance boost if arrays are not required.
 Using a compiler, for example gcc, if in the source directory:
 
 ```
-gcc -std=c99 cosc.c
+gcc -std=c99 -c cosc.c
 ```
 
 and then just add the `-D` defines as required.
@@ -143,16 +143,18 @@ Defined at compile and include time:
 
 ## Example uses
 
-At it's lowest level you can just write the raw data:
+At its lowest level you can just write the raw data:
 
 ```c
+    #include "cosc.h"
+
     char buffer[1024] = {0};
     cosc_int32 ret, offset = 0;
 
     // Write it
-    ret = cosc_write_string(buffer, sizeof(buffer), "/address", 1024, NULL);
+    ret = cosc_write_string(buffer, sizeof(buffer), "/address", 1024, 0);
     offset += ret;
-    ret = cosc_write_string(buffer + offset, sizeof(buffer) - offset, ",if", 1024, NULL);
+    ret = cosc_write_string(buffer + offset, sizeof(buffer) - offset, ",if", 1024, 0);
     offset += ret;
     ret = cosc_write_int32(buffer + offset, sizeof(buffer) - offset, 1234);
     offset += ret;
@@ -162,10 +164,10 @@ At it's lowest level you can just write the raw data:
     // Read it
     offset = 0;
     const char *address = buffer;
-    ret = cosc_read_string(buffer + offset, sizeof(buffer) - offset, NULL, 0, NULL);
+    ret = cosc_read_string(buffer + offset, sizeof(buffer) - offset, 0, 0, 0);
     offset += ret;
     const char *typetag = buffer + offset;
-    ret = cosc_read_string(buffer + offset, sizeof(buffer) - offset, NULL, 0, NULL);
+    ret = cosc_read_string(buffer + offset, sizeof(buffer) - offset, 0, 0, 0);
     offset += ret;
     cosc_int32 value_i;
     ret = cosc_read_int32(buffer + offset, sizeof(buffer) - offset, &value_i);
@@ -178,6 +180,8 @@ At it's lowest level you can just write the raw data:
 Write and read full message using a struct:
 
 ```c
+    #include "cosc.h"
+
     char buffer[1024];
     union cosc_value values[11] = {
         {.i = 0x12345678},
@@ -192,13 +196,16 @@ Write and read full message using a struct:
     message.values.write = values;
     message.values_n = 3;
 
+    cosc_int32 packet_size = 0;
+    cosc_int32 value_count = 0;
     cosc_write_message(
         buffer, sizeof(buffer), &message,
-        true, NULL
+        -1, &value_count
     );
+    message.values.read = values;
     cosc_read_message(
         buffer, sizeof(buffer), &message,
-        &packet_size, &value_count, false
+        &packet_size, &value_count, 0
     );
 ```
 
@@ -207,6 +214,8 @@ and reading OSC data, but there's a convenience API if you want to
 do more advanced nesting of messages in bundles etc.
 
 ```c
+    #include "cosc.h"
+
     char buffer[1024];
     struct cosc_level levels[4];
     struct cosc_serial writer;
@@ -219,7 +228,7 @@ do more advanced nesting of messages in bundles etc.
     struct cosc_serial reader;
     cosc_reader_setup(
         &reader,
-        buffer, cosc_writer_get_size(&writer), // Load from this buffer.
+        buffer, cosc_serial_get_size(&writer), // Load from this buffer.
         levels, 4, // Levels.
         0 // No flags.
     );

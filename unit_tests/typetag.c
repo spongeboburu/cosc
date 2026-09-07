@@ -23,6 +23,16 @@ static void test_typetag_validate(void **state)
     assert_int_equal(invalid, -1);
     assert_false(cosc_typetag_validate("", 1024, &invalid));
     assert_int_equal(invalid, -1);
+#ifndef COSC_NOARRAY
+    assert_true(cosc_typetag_validate(",[i]f", 1024, &invalid));
+    assert_false(cosc_typetag_validate(",[i]x", 1024, &invalid));
+    assert_int_equal(invalid, 4);
+    assert_false(cosc_typetag_validate(",]", 1024, &invalid));
+    assert_int_equal(invalid, 1);
+#endif
+#ifndef COSC_NOPATTERN
+    assert_true(cosc_pattern_char_validate(']'));
+#endif
 }
 
 #ifndef COSC_NOPATTERN
