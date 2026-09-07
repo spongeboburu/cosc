@@ -171,6 +171,7 @@
 
 #else /* COSC_NOSTDINT */
 
+/* These defaults require int and unsigned int to be exactly 32 bits. */
 #ifndef COSC_TYPE_INT32
 #define COSC_TYPE_INT32 int
 #endif

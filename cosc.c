@@ -1047,7 +1047,7 @@ cosc_float32 cosc_float64_to_float32(
                 exponent = 0;
         }
     }
-    uint32_t ret = sign | ((cosc_uint32)exponent << 23) | fraction;
+    cosc_uint32 ret = sign | ((cosc_uint32)exponent << 23) | fraction;
 #ifndef COSC_NOFLOAT32
     return COSC_PUN(cosc_uint32, cosc_float32, ret);
 #else

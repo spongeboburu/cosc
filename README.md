@@ -130,6 +130,8 @@ Defined at compile and include time:
 - `COSC_NOTIMETAG` to remove timetag conversion functions.
 - `COSC_NOFLTCONV` to remove float conversion functions.
 - `COSC_NOSTDINT` for no inclusion of `stdint.h` (or `cstdint` if C++).
+    The default 32-bit types are `int` and `unsigned int`, so they must be
+    exactly 32 bits unless `COSC_TYPE_INT32` and `COSC_TYPE_UINT32` are used.
 - `COSC_NOINT64` to typedef `cosc_int64` and `cosc_uint64` types as `struct cosc_64bits`.
 - `COSC_NOFLOAT32` to typedef `cosc_float32` as `cosc_uint32`.
 - `COSC_NOFLOAT64` to typedef `cosc_float64` as `struct cosc_64bits`.
