@@ -61,6 +61,20 @@ static void test_signature_null(void **state)
         0
     );
     assert_int_equal(ret, 28);
+    ret = cosc_write_signature(
+        NULL, 0,
+        WRITE_MESSAGE.address, WRITE_MESSAGE.address_n,
+        WRITE_MESSAGE.typetag, WRITE_MESSAGE.typetag_n,
+        -1
+    );
+    assert_int_equal(ret, 32);
+    ret = cosc_write_signature(
+        NULL, 0,
+        WRITE_MESSAGE.address, WRITE_MESSAGE.address_n,
+        WRITE_MESSAGE.typetag, WRITE_MESSAGE.typetag_n,
+        32
+    );
+    assert_int_equal(ret, 32);
     ret = cosc_read_signature(
         buffer, sizeof(buffer),
         NULL, NULL,
@@ -153,6 +167,33 @@ static void test_signature_invalid_psize(void **state)
     assert_int_equal(ret, COSC_EPSIZE);
 }
 
+#ifndef COSC_NOPATTERN
+static void test_signature_match_prefix_bounds(void **state)
+{
+    cosc_int32 ret;
+
+    ret = cosc_write_signature(
+        buffer + 4, sizeof(buffer) - 4,
+        "", 0, ",", 1, 0
+    );
+    assert_int_equal(ret, 8);
+    cosc_write_int32(buffer, 4, 32);
+    assert_false(cosc_signature_match(
+        buffer, 12, "", 1024, "", 1024, 1
+    ));
+
+    ret = cosc_write_signature(
+        buffer + 4, sizeof(buffer) - 4,
+        "/hello", 6, ",i", 2, 0
+    );
+    assert_int_equal(ret, 12);
+    cosc_write_int32(buffer, 4, 8);
+    assert_false(cosc_signature_match(
+        buffer, 20, "/hello", 1024, "i", 1024, 1
+    ));
+}
+#endif
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
@@ -161,6 +202,9 @@ int main(void)
         cmocka_unit_test_setup(test_signature_overrun, func_setup),
         cmocka_unit_test_setup(test_signature_psize, func_setup),
         cmocka_unit_test_setup(test_signature_invalid_psize, func_setup),
+#ifndef COSC_NOPATTERN
+        cmocka_unit_test_setup(test_signature_match_prefix_bounds, func_setup),
+#endif
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

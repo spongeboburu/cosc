@@ -866,9 +866,11 @@ cosc_int32 cosc_signature_match(
         if (size < 12)
             return 0;
         prefix = cosc_load_int32(buffer);
-        if (prefix < 8 || prefix > COSC_SIZE_MAX - 8 || COSC_PAD(prefix))
+        if (prefix < 8 || prefix > size - 4
+            || prefix > COSC_SIZE_MAX - 8 || COSC_PAD(prefix))
             return 0;
         buffer = (const char *)buffer + 4;
+        size = prefix;
     }
     else if (size < 8)
         return 0;
@@ -1607,7 +1609,7 @@ cosc_int32 cosc_write_signature(
         if (psize < 8 || COSC_PAD(psize))
             return COSC_EPSIZE;
     }
-    if (buffer && size < 12)
+    if (buffer && psize != 0 && size < 4)
         return COSC_EOVERRUN;
     if (psize != 0)
         req += 4;
@@ -1633,10 +1635,14 @@ cosc_int32 cosc_write_signature(
     {
         if (psize < req - 4 || COSC_PAD(psize) || psize > COSC_SIZE_MAX - 4)
             return COSC_EPSIZE;
-        cosc_store_int32(buffer, psize);
+        if (buffer)
+            cosc_store_int32(buffer, psize);
     }
     else if (psize < 0)
-        cosc_store_int32(buffer, req - 4);
+    {
+        if (buffer)
+            cosc_store_int32(buffer, req - 4);
+    }
     return req;
 }
 
@@ -1650,27 +1656,28 @@ cosc_int32 cosc_read_signature(
     cosc_int32 *psize
 )
 {
-    cosc_int32 req = 0, sz;
+    cosc_int32 req = 0, sz, available = size;
     if (size < 8)
         return COSC_EOVERRUN;
     if (psize)
     {
         *psize = cosc_load_int32(buffer);
-        if (*psize < 8 || *psize > COSC_SIZE_MAX - 8 || COSC_PAD(*psize))
+        if (*psize < 8 || *psize > COSC_SIZE_MAX - 4 || COSC_PAD(*psize))
             return COSC_EPSIZE;
         if (*psize > size - 4)
             return COSC_EOVERRUN;
         req += 4;
+        available = *psize + 4;
     }
     if (address)
         *address = (const char *)buffer + req;
-    sz = cosc_read_string((const char *)buffer + req, size - req, 0, 0, address_n);
+    sz = cosc_read_string((const char *)buffer + req, available - req, 0, 0, address_n);
     if (sz < 0)
         return sz;
     req += sz;
     if (typetag)
         *typetag = (const char *)buffer + req;
-    sz = cosc_read_string((const char *)buffer + req, size - req, 0, 0, typetag_n);
+    sz = cosc_read_string((const char *)buffer + req, available - req, 0, 0, typetag_n);
     if (sz < 0)
         return sz;
     req += sz;
@@ -1978,7 +1985,7 @@ cosc_int32 cosc_write_message(
     }
     req += sz;
     sz = cosc_write_values(
-        (unsigned char *)buffer + req, size - req,
+        buffer ? (unsigned char *)buffer + req : 0, buffer ? size - req : 0,
         message->typetag, message->typetag_n,
         message->values.write, message->values_n,
         value_count
@@ -1992,10 +1999,14 @@ cosc_int32 cosc_write_message(
     {
         if (psize < req - 4 || COSC_PAD(psize) || psize > COSC_SIZE_MAX - 4)
             return COSC_EPSIZE;
-        cosc_write_int32(buffer, 4, psize);
+        if (buffer)
+            cosc_write_int32(buffer, 4, psize);
     }
     else if (psize < 0)
-        cosc_write_int32(buffer, 4, req - 4);
+    {
+        if (buffer)
+            cosc_write_int32(buffer, 4, req - 4);
+    }
     return req;
 }
 
@@ -2034,7 +2045,9 @@ cosc_int32 cosc_read_message(
         return COSC_SIZE_MAX;
     }
     req += sz;
-    buffer = (char *)buffer + sz;
+    buffer = (const char *)buffer + sz;
+    if (psize)
+        size = *psize + 4;
     sz = cosc_read_values(
         buffer, size - req,
         message->typetag, message->typetag_n,

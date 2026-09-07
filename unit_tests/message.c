@@ -110,11 +110,45 @@ static void test_message_psize(void **state)
     assert_string_equal(read.typetag, ",ifrcmsSbhtdTFNI");
 }
 
+static void test_message_size_query(void **state)
+{
+    cosc_int32 value_count = 0;
+    assert_int_equal(
+        cosc_write_message(NULL, 0, &WRITE_MESSAGE, 0, &value_count),
+        120
+    );
+    assert_int_equal(value_count, 11);
+    assert_int_equal(
+        cosc_write_message(NULL, 0, &WRITE_MESSAGE, -1, &value_count),
+        124
+    );
+    assert_int_equal(value_count, 11);
+}
+
+static void test_message_psize_bounds_values(void **state)
+{
+    cosc_int32 value_count = 0;
+    cosc_int32 psize;
+    struct cosc_message read = {0};
+    assert_int_equal(
+        cosc_write_message(buffer, sizeof(buffer), &WRITE_MESSAGE, -1, &value_count),
+        124
+    );
+    psize = 28;
+    cosc_write_int32(buffer, 4, psize);
+    assert_int_equal(
+        cosc_read_message(buffer, sizeof(buffer), &read, &psize, &value_count, false),
+        COSC_EOVERRUN
+    );
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup(test_message_nopsize, func_setup),
         cmocka_unit_test_setup(test_message_psize, func_setup),
+        cmocka_unit_test_setup(test_message_size_query, func_setup),
+        cmocka_unit_test_setup(test_message_psize_bounds_values, func_setup),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
