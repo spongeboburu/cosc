@@ -142,6 +142,25 @@ static void test_message_psize_bounds_values(void **state)
     );
 }
 
+static void test_dumps_are_bounded(void **state)
+{
+    char output[128];
+    char text[] = {'a', 'b', 'c', 'X'};
+    union cosc_value value = {.s = {text, 3}};
+    struct cosc_message message = {
+        text, 2, text + 2, 2, {.read = NULL}, 1
+    };
+
+    assert_int_equal(cosc_value_dump(output, sizeof(output), 's', &value), 5);
+    assert_string_equal(output, "\"abc\"");
+    value.b.b = NULL;
+    value.b.size = 2;
+    assert_int_equal(cosc_value_dump(output, sizeof(output), 'b', &value), 10);
+    assert_string_equal(output, "(2){00 00}");
+    assert_int_equal(cosc_message_dump(output, sizeof(output), &message), 21);
+    assert_string_equal(output, "<\"ab\" \"cX\" (1)[NULL]>");
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
@@ -149,6 +168,7 @@ int main(void)
         cmocka_unit_test_setup(test_message_psize, func_setup),
         cmocka_unit_test_setup(test_message_size_query, func_setup),
         cmocka_unit_test_setup(test_message_psize_bounds_values, func_setup),
+        cmocka_unit_test_setup(test_dumps_are_bounded, func_setup),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -2101,7 +2101,11 @@ cosc_int32 cosc_value_dump(
     case 'f': return snprintf(s, n, "%f", value->f);
 #endif
     case 'S':
-    case 's': return snprintf(s, n, "\"%s\"", value->s.s ? value->s.s : "");
+    case 's':
+    {
+        cosc_int32 length = value->s.length > 0 ? value->s.length : 0;
+        return snprintf(s, n, "\"%.*s\"", length, value->s.s ? value->s.s : "");
+    }
 #ifdef COSC_NOINT64
     case 'h': return snprintf(s, n, "0x%08x %08x", COSC_64BITS_HI(&value->h), COSC_64BITS_LO(&value->h));
     case 't': return snprintf(s, n, "0x%08x %08x", COSC_64BITS_HI(&value->t), COSC_64BITS_LO(&value->t));
@@ -2110,7 +2114,7 @@ cosc_int32 cosc_value_dump(
     case 't': return snprintf(s, n, "%" PRIu64, value->t);
 #endif
 #ifdef COSC_NOFLOAT64
-    case 'd': return snprintf(s, n, "0x%08x %08x" PRIx64, COSC_64BITS_LO(&value->d), COSC_64BITS_HI(&value->d));
+    case 'd': return snprintf(s, n, "0x%08x %08x", COSC_64BITS_HI(&value->d), COSC_64BITS_LO(&value->d));
 #else
     case 'd': return snprintf(s, n, "%f", value->d);
 #endif
@@ -2128,11 +2132,12 @@ cosc_int32 cosc_value_dump(
 
     if (type == 'b')
     {
-        cosc_int32 len = snprintf(s, n, "(%d){", value->b.size);
-        if (value->b.size > 0)
-            len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, "%02x", ((unsigned char *)value->b.b)[0]);
-        for (int32_t i = 1; i < value->b.size; i++)
-            len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, " %02x", ((unsigned char *)value->b.b)[i]);
+        cosc_int32 size = value->b.size > 0 ? value->b.size : 0;
+        cosc_int32 len = snprintf(s, n, "(%d){", size);
+        for (cosc_int32 i = 0; i < size; i++)
+            len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0,
+                i ? " %02x" : "%02x",
+                value->b.b ? ((const unsigned char *)value->b.b)[i] : 0);
         len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, "}");
         return len;
     }
@@ -2156,12 +2161,16 @@ cosc_int32 cosc_message_dump(
     if (!message)
         return snprintf(s, n, "NULL");
     cosc_int32 value_count = cosc_typetag_payload(0, 0, message->typetag, message->typetag_n, 0);
-    if (value_count > message->values_n)
+    if (value_count < 0)
+        value_count = 0;
+    else if (value_count > message->values_n)
         value_count = message->values_n;
     cosc_int32 len = 0;
     len += snprintf(
-        len < n ? s + len : 0, len < n ? n - len : 0, "<\"%s\" \"%s\" (%d)[",
+        len < n ? s + len : 0, len < n ? n - len : 0, "<\"%.*s\" \"%.*s\" (%d)[",
+        message->address_n > 0 ? message->address_n : 0,
         message->address ? message->address : "",
+        message->typetag_n > 0 ? message->typetag_n : 0,
         message->typetag ? message->typetag : "",
         value_count
     );
@@ -2174,7 +2183,11 @@ cosc_int32 cosc_message_dump(
             break;
         if (i > 0)
             len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, ", ");
-        len += cosc_value_dump(len < n ? s + len : 0, len < n ? n - len : 0, message->typetag[tindex], message->values.read + i);
+        len += cosc_value_dump(
+            len < n ? s + len : 0, len < n ? n - len : 0,
+            message->typetag[tindex],
+            message->values.read ? message->values.read + i : 0
+        );
         tindex++;
     }
     len += snprintf(len < n ? s + len : 0, len < n ? n - len : 0, "]>");
