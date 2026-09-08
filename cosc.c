@@ -413,7 +413,7 @@ cosc_int32 cosc_feature_timetag(void)
 
 cosc_int32 cosc_feature_fltconv(void)
 {
-#ifdef COSC_NOTIMETAG
+#ifdef COSC_NOFLTCONV
     return 0;
 #else
     return 1;

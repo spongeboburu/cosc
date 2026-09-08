@@ -117,30 +117,31 @@ Optional:
 
 ## Defines at build/include
 
-Defined at compile and include time:
+Defined at compile and first include time:
 
 - `COSC_NOSTDLIB` for no use of the standard library.
-    This will also remove the dump functions.
-- `COSC_NOPATTERN` to remove the pattern matching functions.
+  This will also remove the dump functions.
+- `COSC_NOSTDINT` to not include `stdint.h` (or `cstdint` if C++).
+- `COSC_NOINT64` to typedef `cosc_int64` and `cosc_uint64` as cosc_64bits.
+- `COSC_NOFLOAT32` to typedef `cosc_float32` as cosc_uint32.
+- `COSC_NOFLOAT64` to typedef `cosc_float64` as cosc_64bits.
+- `COSC_NOPATTERN` to remove the pattern validation and matching functions.
 - `COSC_NOSWAP` for no endian swapping.
 - `COSC_NOARRAY` to remove the support for arrays.
 - `COSC_NODUMP` to remove the dump functions.
-- `COSC_NOWRITER` to remove the writer functions.
-- `COSC_NOREADER` to remove the reader functions.
 - `COSC_NOTIMETAG` to remove timetag conversion functions.
 - `COSC_NOFLTCONV` to remove float conversion functions.
-- `COSC_NOSTDINT` for no inclusion of `stdint.h` (or `cstdint` if C++).
-    The default 32-bit types are `int` and `unsigned int`, so they must be
-    exactly 32 bits unless `COSC_TYPE_INT32` and `COSC_TYPE_UINT32` are used.
-- `COSC_NOINT64` to typedef `cosc_int64` and `cosc_uint64` types as `struct cosc_64bits`.
-- `COSC_NOFLOAT32` to typedef `cosc_float32` as `cosc_uint32`.
-- `COSC_NOFLOAT64` to typedef `cosc_float64` as `struct cosc_64bits`.
-- `COSC_TYPE_UINT32` used to override typedef `cosc_uint32`.
-- `COSC_TYPE_INT32` used to override typedef `cosc_int32`.
-- `COSC_TYPE_FLOAT32` used to override typedef `cosc_float32`.
-- `COSC_TYPE_UINT64` used to override typedef `cosc_uint64`.
-- `COSC_TYPE_INT64` used to override typedef `cosc_int64`.
-- `COSC_TYPE_FLOAT64` used to override typedef `cosc_float64`.
+- `COSC_NOWRITER` to remove the writer functions.
+- `COSC_NOREADER` to remove the reader functions.
+
+Type overrides (also at compile and first include time):
+
+- `COSC_TYPE_UINT32` used to override typedef cosc_uint32.
+- `COSC_TYPE_INT32` used to override typedef cosc_int32.
+- `COSC_TYPE_FLOAT32` used to override typedef cosc_float32.
+- `COSC_TYPE_UINT64` used to override typedef cosc_uint64.
+- `COSC_TYPE_INT64` used to override typedef cosc_int64.
+- `COSC_TYPE_FLOAT64` used to override typedef cosc_float64.
 
 
 ## Example uses

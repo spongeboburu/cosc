@@ -5,34 +5,34 @@
  *
  * @section build_options Build options
  *
- * Defined at compile AND include time:
+ * Defined at compile and first include time:
  *
- * - COSC_NOSTDLIB for no use of the standard library.
+ * - @ref COSC_NOSTDLIB for no use of the standard library.
  *   This will also remove the dump functions.
- * - COSC_NOPATTERN to remove the pattern matching functions.
- * - COSC_NOSWAP for no endian swapping.
- * - COSC_NOARRAY to remove the support for arrays.
- * - COSC_NOSTDINT to not include `stdint.h` (or `cstdint` if C++).
- * - COSC_NODUMP to remove the dump functions.
- * - COSC_NOTIMETAG to remove timetag conversion functions.
- * - COSC_NOFLTCONV to remove float conversion functions.
- * - COSC_NOWRITER to remove the writer functions.
- * - COSC_NOREADER to remove the reader functions.
- * - COSC_NOINT64 to typedef `cosc_int64` and `cosc_uint64` as @ref cosc_64bits.
- * - COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
- * - COSC_NOFLOAT64 to typedef `cosc_float64` as @ref cosc_64bits.
+ * - @ref COSC_NOSTDINT to not include `stdint.h` (or `cstdint` if C++).
+ * - @ref COSC_NOINT64 to typedef `cosc_int64` and `cosc_uint64` as @ref cosc_64bits.
+ * - @ref COSC_NOFLOAT32 to typedef `cosc_float32` as @ref cosc_uint32.
+ * - @ref COSC_NOFLOAT64 to typedef `cosc_float64` as @ref cosc_64bits.
+ * - @ref COSC_NOPATTERN to remove the pattern validation and matching functions.
+ * - @ref COSC_NOSWAP for no endian swapping.
+ * - @ref COSC_NOARRAY to remove the support for arrays.
+ * - @ref COSC_NODUMP to remove the dump functions.
+ * - @ref COSC_NOTIMETAG to remove timetag conversion functions.
+ * - @ref COSC_NOFLTCONV to remove float conversion functions.
+ * - @ref COSC_NOWRITER to remove the writer functions.
+ * - @ref COSC_NOREADER to remove the reader functions.
  *
- * Type overrides (also at compile AND include time):
+ * Type overrides (also at compile and first include time):
  *
- * - COSC_TYPE_UINT32 used to override typedef @ref cosc_uint32.
- * - COSC_TYPE_INT32 used to override typedef @ref cosc_int32.
- * - COSC_TYPE_FLOAT32 used to override typedef @ref cosc_float32.
- * - COSC_TYPE_UINT64 used to override typedef @ref cosc_uint64.
- * - COSC_TYPE_INT64 used to override typedef @ref cosc_int64.
- * - COSC_TYPE_FLOAT64 used to override typedef @ref cosc_float64.
+ * - @ref COSC_TYPE_UINT32 used to override typedef @ref cosc_uint32.
+ * - @ref COSC_TYPE_INT32 used to override typedef @ref cosc_int32.
+ * - @ref COSC_TYPE_FLOAT32 used to override typedef @ref cosc_float32.
+ * - @ref COSC_TYPE_UINT64 used to override typedef @ref cosc_uint64.
+ * - @ref COSC_TYPE_INT64 used to override typedef @ref cosc_int64.
+ * - @ref COSC_TYPE_FLOAT64 used to override typedef @ref cosc_float64.
  *
  * NOTE that type overrides will not work for types affected by
- * COSC_NOINT64, COSC_NOFLOAT32 or COSC_NOFLOAT64 when those
+ * @ref COSC_NOINT64, @ref COSC_NOFLOAT32 or @ref COSC_NOFLOAT64 when those
  * are defined.
  *
  * @section license License
@@ -841,7 +841,7 @@ COSC_API cosc_int32 cosc_typetag_validate(
  * enough to accept all types + 1.
  * @note The function may return a value greater than or equal to @p s_n
  * indicating that some types may have been truncated to fit @p s.
- * @note If cosc was built with COSC_NOARRAY the value stored
+ * @note If cosc was built with @ref COSC_NOARRAY the value stored
  * to @p array_members will always be 0.
  */
 COSC_API cosc_int32 cosc_typetag_payload(
@@ -858,7 +858,7 @@ COSC_API cosc_int32 cosc_typetag_payload(
  * Check if an pattern character is valid.
  * @param c The character.
  * @returns Non-zero if valid or zero if invalid.
- * @remark This function is not available if COSC_NOPATTERN
+ * @remark This function is not available if @ref COSC_NOPATTERN
  * was defined when compiling.
  */
 COSC_API cosc_int32 cosc_pattern_char_validate(
@@ -881,7 +881,7 @@ COSC_API cosc_int32 cosc_pattern_char_validate(
  * cosc_pattern_match().
  * @note When matching typetags the comma prefix and any array
  * syntax characters are removed from the matching.
- * @remark This function is not available if COSC_NOPATTERN
+ * @remark This function is not available if @ref COSC_NOPATTERN
  * was defined when compiling.
  */
 COSC_API cosc_int32 cosc_pattern_validate(
@@ -901,7 +901,7 @@ COSC_API cosc_int32 cosc_pattern_validate(
  * of OSC typetags the array brackets are ignored when matching.
  * @note For typetags the comma prefix and array brackets are ignored
  * and should be omitted from the @p pattern.
- * @remark This function is not available if COSC_NOPATTERN
+ * @remark This function is not available if @ref COSC_NOPATTERN
  * was defined when compiling.
  *
  * Pattern syntax:
@@ -937,7 +937,7 @@ COSC_API cosc_int32 cosc_pattern_match(
  * @param prefix Non-zero to expect a message with a 32-bit signed
  * size integer prefix.
  * @returns Non-zero when matching or zero for no match.
- * @remark This function is not available if COSC_NOPATTERN
+ * @remark This function is not available if @ref COSC_NOPATTERN
  * was defined when compiling.
  */
 COSC_API cosc_int32 cosc_signature_match(
@@ -962,6 +962,8 @@ COSC_API cosc_int32 cosc_signature_match(
  * @note Because a timetag's fraction of a second is greater
  * than a nanosecond the returned @p nanos will have
  * a loss of precision.
+ * @note This function is not available if cosc was built with
+ * @ref COSC_NOTIMETAG.
  */
 COSC_API cosc_uint32 cosc_timetag_to_time(
     cosc_uint64 timetag,
@@ -973,6 +975,8 @@ COSC_API cosc_uint32 cosc_timetag_to_time(
  * @param seconds The time in seconds.
  * @param nanos The time nanos.
  * @returns The timetag.
+ * @note This function is not available if cosc was built with
+ * @ref COSC_NOTIMETAG.
  */
 COSC_API cosc_uint64 cosc_time_to_timetag(
     cosc_uint32 seconds,
@@ -987,10 +991,10 @@ COSC_API cosc_uint64 cosc_time_to_timetag(
  * Convert a 64-bit float to a 32-bit float.
  * @param value The 64-bit float.
  * @returns The 32-bit float.
- * @note This function is only useful if either or both COSC_NOFLOAT32
- * and COSC_NOFLOAT64 were defined when building.
+ * @note This function is only useful if either or both @ref COSC_NOFLOAT32
+ * and @ref COSC_NOFLOAT64 were defined when building.
  * @remark This function is not available if cosc was built
- * with COSC_NOFLTCONV.
+ * with @ref COSC_NOFLTCONV.
  */
 COSC_API cosc_float32 cosc_float64_to_float32(
     cosc_float64 value
@@ -1000,10 +1004,10 @@ COSC_API cosc_float32 cosc_float64_to_float32(
  * Convert a 32-bit float to a 64-bit float.
  * @param value The 32-bit float.
  * @returns The 64-bit float.
- * @note This function is only useful if either or both COSC_NOFLOAT32
- * and COSC_FLOAT64 were defined when building.
+ * @note This function is only useful if either or both @ref COSC_NOFLOAT32
+ * and @ref COSC_NOFLOAT64 were defined when building.
  * @remark This function is not available if cosc was built
- * with COSC_NOFLTCONV.
+ * with @ref COSC_NOFLTCONV.
  */
 COSC_API cosc_float64 cosc_float32_to_float64(
     cosc_float32 value
@@ -1616,6 +1620,8 @@ COSC_API cosc_int32 cosc_read_value(
  * if the operation fails.
  * @note If @p values_n is less than the values specified by @p typetag
  * the remaining values are written as zero/empty.
+ * @note Array declarations are ignored if @ref COSC_NOARRAY was
+ * defined when building.
  *
  * - @ref COSC_EOVERRUN if @p buffer is non-NULL and @p size is too small.
  * - @ref COSC_ESIZEMAX if @p size > @ref COSC_SIZE_MAX.
@@ -1648,7 +1654,9 @@ COSC_API cosc_int32 cosc_write_values(
  * operation fails.
  * @note If @p values_n is less than the values specified by @p types
  * the remaining values are discarded.
- * @note The value of @p exit_early has no effect if COSC_NOARRAY was
+ * @note Array declarations are ignored if @ref COSC_NOARRAY was
+ * defined when building.
+ * @note The value of @p exit_early has no effect if @ref COSC_NOARRAY was
  * defined when building.
  *
  * - @ref COSC_EOVERRUN if @p size is too small.
@@ -1683,6 +1691,8 @@ COSC_API cosc_int32 cosc_read_values(
  * @note The message address is NOT validated.
  * @note If message.values_n is less than the values specified
  * in message.typetag the rest of the values will be written as zero/empty.
+ * @note Array declarations are ignored if @ref COSC_NOARRAY was
+ * defined when building.
  *
  * - @ref COSC_EOVERRUN if @p buffer is non-NULL and @p size is too small.
  * - @ref COSC_ESIZEMAX if @p size > @ref COSC_SIZE_MAX.
@@ -1716,7 +1726,9 @@ COSC_API cosc_int32 cosc_write_message(
  * @note The message address is NOT validated.
  * @note If message.values_n is less than the values specified
  * in message.typetag the rest of the values will be read and discarded.
- * @note The value of @p exit_early has no effect if COSC_NOARRAY was
+ * @note Array declarations are ignored if @ref COSC_NOARRAY was
+ * defined when building.
+ * @note The value of @p exit_early has no effect if @ref COSC_NOARRAY was
  * defined when building.
  *
  * - @ref COSC_EOVERRUN if @p size is too small.
@@ -1744,7 +1756,7 @@ COSC_API cosc_int32 cosc_read_message(
  * @returns The length of the string, excluding the zero terminator.
  * @note The returned length may be greater than or equal to @p n indicating
  * that the string was truncated.
- * @remark This function is not available if COSC_NOSTDLIB or COSC_NODUMP
+ * @remark This function is not available if @ref COSC_NOSTDLIB or @ref COSC_NODUMP
  * were defined when compiling.
  */
 COSC_API cosc_int32 cosc_value_dump(
@@ -1762,7 +1774,7 @@ COSC_API cosc_int32 cosc_value_dump(
  * @returns The length of the string, excluding the zero terminator.
  * @note The returned length may be greater than or equal to @p n indicating
  * that the string was truncated.
- * @remark This function is not available if COSC_NOSTDLIB or COSC_NODUMP
+ * @remark This function is not available if @ref COSC_NOSTDLIB or @ref COSC_NODUMP
  * were defined when compiling.
  */
 COSC_API cosc_int32 cosc_message_dump(
@@ -1779,8 +1791,8 @@ COSC_API cosc_int32 cosc_message_dump(
  * The maximum number of bytes that can be written/read to/from the buffer.
  * @param serial The serial.
  * @returns The maximum number of bytes to write/read.
- * @remark This function is not available if both COSC_NOWRITER
- * and COSC_NOREADER were defined when compiling.
+ * @remark This function is not available if both @ref COSC_NOWRITER
+ * and @ref COSC_NOREADER were defined when compiling.
  */
 COSC_API cosc_int32 cosc_serial_get_buffer_size(
     const struct cosc_serial *serial
@@ -1790,8 +1802,8 @@ COSC_API cosc_int32 cosc_serial_get_buffer_size(
  * Get the number of written or read bytes.
  * @param serial The serial.
  * @returns The number of written/read bytes.
- * @remark This function is not available if both COSC_NOWRITER
- * and COSC_NOREADER were defined when compiling.
+ * @remark This function is not available if both @ref COSC_NOWRITER
+ * and @ref COSC_NOREADER were defined when compiling.
  */
 COSC_API cosc_int32 cosc_serial_get_size(
     const struct cosc_serial *serial
@@ -1803,8 +1815,8 @@ COSC_API cosc_int32 cosc_serial_get_size(
  * @returns The current message typetag type, @ref COSC_ELEVELTYPE
  * if the current leve is not a message or 0 if the typetag has
  * reached it's end.
- * @remark This function is not available if both COSC_NOWRITER
- * and COSC_NOREADER were defined when compiling.
+ * @remark This function is not available if both @ref COSC_NOWRITER
+ * and @ref COSC_NOREADER were defined when compiling.
  */
 COSC_API cosc_int32 cosc_serial_get_msgtype(
     const struct cosc_serial *serial
@@ -1813,6 +1825,8 @@ COSC_API cosc_int32 cosc_serial_get_msgtype(
 /**
  * Reset serial.
  * @param serial The serial.
+ * @remark This function is not available if both @ref COSC_NOWRITER
+ * and @ref COSC_NOREADER were defined when compiling.
  */
 COSC_API void cosc_serial_reset(
     struct cosc_serial *serial
@@ -1833,7 +1847,7 @@ COSC_API void cosc_serial_reset(
  * be at least 1.
  * @param flags Serial flags, see COSC_SERIAL_* macros.
  * @see @ref COSC_SERIAL_PSIZE.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  */
 COSC_API void cosc_writer_setup(
@@ -1851,7 +1865,7 @@ COSC_API void cosc_writer_setup(
  * @param timetag A timetag for the bundle.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -1871,7 +1885,7 @@ COSC_API cosc_int32 cosc_writer_start_bundle(
  * @param serial The serial.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -1892,7 +1906,7 @@ COSC_API cosc_int32 cosc_writer_end_bundle(
  * @param typetag_n Read at most this many bytes from @p typetag.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -1915,7 +1929,7 @@ COSC_API cosc_int32 cosc_writer_start_message(
  * @param serial The serial.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -1932,7 +1946,7 @@ COSC_API cosc_int32 cosc_writer_end_message(
  * @param serial The serial.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  * @note To write raw bytes to a started blob level use
  * cosc_writer_bytes().
@@ -1953,7 +1967,7 @@ COSC_API cosc_int32 cosc_writer_start_blob(
  * @param serial The serial.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -1975,7 +1989,7 @@ COSC_API cosc_int32 cosc_writer_end_blob(
  * @param value The value.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -1997,7 +2011,7 @@ COSC_API cosc_int32 cosc_writer_uint32(
  * @param value The value.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2019,7 +2033,7 @@ COSC_API cosc_int32 cosc_writer_int32(
  * @param value The value.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2041,7 +2055,7 @@ COSC_API cosc_int32 cosc_writer_float32(
  * @param value The value.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2063,7 +2077,7 @@ COSC_API cosc_int32 cosc_writer_uint64(
  * @param value The value.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2085,7 +2099,7 @@ COSC_API cosc_int32 cosc_writer_int64(
  * @param value The value.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2111,7 +2125,7 @@ COSC_API cosc_int32 cosc_writer_float64(
  * of the string is stored here.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2138,7 +2152,7 @@ COSC_API cosc_int32 cosc_writer_string(
  * code on failure.
  * @note To write raw bytes to a started blob level use
  * cosc_writer_bytes().
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2161,7 +2175,7 @@ COSC_API cosc_int32 cosc_writer_blob(
  * @param value The value.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2184,7 +2198,7 @@ COSC_API cosc_int32 cosc_writer_char(
  * @returns The number of written bytes or a negative error
  * code on failure.
  * @note Normally the fourth byte isn't used in MIDI.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2208,7 +2222,7 @@ COSC_API cosc_int32 cosc_writer_midi(
  * @returns The number of written bytes or a negative error
  * code on failure.
  * @note Normally the fourth byte isn't used in MIDI.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2237,7 +2251,7 @@ COSC_API cosc_int32 cosc_writer_value(
  * @note The message address is NOT validated.
  * @note If message.values_n is less than the values specified
  * in message.typetag the rest of the values will be written as zero/empty.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * - @ref COSC_EOVERRUN if the operation would overrun the buffer.
@@ -2258,7 +2272,7 @@ COSC_API cosc_int32 cosc_writer_message(
  * @param value_n The number of bytes to write.
  * @returns The number of written bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2279,7 +2293,7 @@ COSC_API cosc_int32 cosc_writer_bytes(
  * @returns The number of written bytes or a negative error
  * code on failure or 0 if there are no more types in the
  * message typetag.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2299,9 +2313,9 @@ COSC_API cosc_int32 cosc_writer_skip(
  * starts with a '['.
  * @param serial The serial.
  * @returns 0 on success or a negative error code on failure.
- * @note If cosc was built with COSC_NOARRAY defined this function does
+ * @note If cosc was built with @ref COSC_NOARRAY defined this function does
  * nothing and returns 0 or @ref COSC_EINVAL.
- * @remark This function is not available if COSC_NOWRITER
+ * @remark This function is not available if @ref COSC_NOWRITER
  * was defined when compiling.
  *
  * Error codes:
@@ -2331,7 +2345,7 @@ COSC_API cosc_int32 cosc_writer_repeat(
  * be at least 1.
  * @param flags Serial flags, see COSC_SERIAL_* macros.
  * @see @ref COSC_SERIAL_PSIZE.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  */
 COSC_API void cosc_reader_setup(
@@ -2353,7 +2367,7 @@ COSC_API void cosc_reader_setup(
  * packet size.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2376,7 +2390,7 @@ COSC_API cosc_int32 cosc_reader_peek_bundle(
  * negative error code the timestamp is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2397,7 +2411,7 @@ COSC_API cosc_int32 cosc_reader_start_bundle(
  * @param serial The serial.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2424,7 +2438,7 @@ COSC_API cosc_int32 cosc_reader_end_bundle(
  * of the typetag is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2450,7 +2464,7 @@ COSC_API cosc_int32 cosc_reader_start_message(
  * if there are more bytes left in @p buffer.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2472,7 +2486,7 @@ COSC_API cosc_int32 cosc_reader_end_message(
  * code on failure.
  * @note To read raw bytes to a started blob level use
  * cosc_reader_bytes().
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2492,7 +2506,7 @@ COSC_API cosc_int32 cosc_reader_start_blob(
  * @param serial The serial.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2513,7 +2527,7 @@ COSC_API cosc_int32 cosc_reader_end_blob(
  * negative error code the value is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2536,7 +2550,7 @@ COSC_API cosc_int32 cosc_reader_uint32(
  * negative error code the value is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2559,7 +2573,7 @@ COSC_API cosc_int32 cosc_reader_int32(
  * negative error code the value is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2582,7 +2596,7 @@ COSC_API cosc_int32 cosc_reader_float32(
  * negative error code the value is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2605,7 +2619,7 @@ COSC_API cosc_int32 cosc_reader_uint64(
  * negative error code the value is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2628,7 +2642,7 @@ COSC_API cosc_int32 cosc_reader_int64(
  * negative error code the value is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2655,7 +2669,7 @@ COSC_API cosc_int32 cosc_reader_float64(
  * terminator, is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2688,7 +2702,7 @@ COSC_API cosc_int32 cosc_reader_string(
  * code on failure.
  * @note To read raw bytes to a started blob level use
  * cosc_reader_bytes().
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2714,7 +2728,7 @@ COSC_API cosc_int32 cosc_reader_blob(
  * negative error code the value is stored here.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2738,7 +2752,7 @@ COSC_API cosc_int32 cosc_reader_char(
  * @returns The number of read bytes or a negative error
  * code on failure.
  * @note Normally the fourth byte isn't used in MIDI.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2763,7 +2777,7 @@ COSC_API cosc_int32 cosc_reader_midi(
  * @returns The number of read bytes or a negative error
  * code on failure.
  * @note Normally the fourth byte isn't used in MIDI.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2795,7 +2809,7 @@ COSC_API cosc_int32 cosc_reader_value(
  * @note The message address is NOT validated.
  * @note If message.values_n is less than the values specified
  * in message.typetag the rest of the values will be read and discarded.
- * @note The value of @p exit_early has no effect if COSC_NOARRAY was
+ * @note The value of @p exit_early has no effect if @ref COSC_NOARRAY was
  * defined when building.
  *
  * - @ref COSC_EINVAL if the serial was setup as a writer.
@@ -2819,7 +2833,7 @@ COSC_API cosc_int32 cosc_reader_message(
  * @param value_n The number of bytes to read.
  * @returns The number of read bytes or a negative error
  * code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2840,7 +2854,7 @@ COSC_API cosc_int32 cosc_reader_bytes(
  * @returns The number of read bytes or a negative error
  * code on failure or 0 if there are no more types in the
  * message typetag.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
@@ -2860,7 +2874,7 @@ COSC_API cosc_int32 cosc_reader_skip(
  * starting '[' character.
  * @param serial The serial.
  * @returns 0 on success or a negative error code on failure.
- * @remark This function is not available if COSC_NOREADER
+ * @remark This function is not available if @ref COSC_NOREADER
  * was defined when compiling.
  *
  * Error codes:
