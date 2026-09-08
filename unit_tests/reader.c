@@ -89,6 +89,29 @@ static const unsigned char message_array[152] = {
      '?', 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+
+static const unsigned char message_empty_array_extra[16] = {
+    0x00, 0x00, 0x00, 0x0c, 'a', 0x00, 0x00, 0x00,
+    ',', '[', ']', 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const unsigned char message_zero_size_array_extra[20] = {
+    0x00, 0x00, 0x00, 0x10, 'a', 0x00, 0x00, 0x00,
+    ',', '[', 'T', 'N', 'F', 'I', ']', 0x00,
+    0x00, 0x00, 0x00, 0x00,
+};
+
+static const unsigned char message_zero_size_then_value_array[24] = {
+    0x00, 0x00, 0x00, 0x14, 'a', 0x00, 0x00, 0x00,
+    ',', '[', 'T', 'f', ']', 0x00, 0x00, 0x00,
+    0x3f, 0x80, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+};
+
+static const unsigned char message_unmatched_array_end_extra[16] = {
+    0x00, 0x00, 0x00, 0x0c, 'a', 0x00, 0x00, 0x00,
+    ',', ']', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
 #endif
 
 static int func_setup(void **state)
@@ -292,6 +315,34 @@ static void test_message_array(void **state)
     }
     assert_int_equal(cosc_reader_end_message(&reader, 1), 0);
 }
+
+static void test_message_end_array_edge_cases(void **state)
+{
+    (void) state;
+
+    cosc_reader_setup(&reader, message_empty_array_extra,
+        sizeof(message_empty_array_extra), levels, level_max, COSC_SERIAL_PSIZE);
+    assert_int_equal(cosc_reader_start_message(&reader, 0, 0, 0, 0), 12);
+    assert_int_equal(cosc_reader_end_message(&reader, 0), 0);
+    assert_int_equal(cosc_serial_get_size(&reader), 12);
+
+    cosc_reader_setup(&reader, message_zero_size_array_extra,
+        sizeof(message_zero_size_array_extra), levels, level_max, COSC_SERIAL_PSIZE);
+    assert_int_equal(cosc_reader_start_message(&reader, 0, 0, 0, 0), 16);
+    assert_int_equal(cosc_reader_end_message(&reader, 0), 0);
+    assert_int_equal(cosc_serial_get_size(&reader), 16);
+
+    cosc_reader_setup(&reader, message_zero_size_then_value_array,
+        sizeof(message_zero_size_then_value_array), levels, level_max, COSC_SERIAL_PSIZE);
+    assert_int_equal(cosc_reader_start_message(&reader, 0, 0, 0, 0), 16);
+    assert_int_equal(cosc_reader_end_message(&reader, 0), 8);
+    assert_int_equal(cosc_serial_get_size(&reader), 24);
+
+    cosc_reader_setup(&reader, message_unmatched_array_end_extra,
+        sizeof(message_unmatched_array_end_extra), levels, level_max, COSC_SERIAL_PSIZE);
+    assert_int_equal(cosc_reader_start_message(&reader, 0, 0, 0, 0), 12);
+    assert_int_equal(cosc_reader_end_message(&reader, 0), COSC_EMSGTYPE);
+}
 #endif
 
 static void test_message_unfinished_noarray(void **state)
@@ -325,6 +376,7 @@ int main(void)
         cmocka_unit_test_setup_teardown(test_message_unfinished_noarray, func_setup, func_teardown),
 #ifndef COSC_NOARRAY
         cmocka_unit_test_setup_teardown(test_message_array, func_setup, func_teardown),
+        cmocka_unit_test_setup_teardown(test_message_end_array_edge_cases, func_setup, func_teardown),
         // cmocka_unit_test_setup_teardown(test_message_unfinished_array, func_setup, func_teardown),
 #endif
     };

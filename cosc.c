@@ -1800,6 +1800,7 @@ cosc_int32 cosc_write_values(
     cosc_int32 tlen = 0, vlen = 0, req = 0;
 #ifndef COSC_NOARRAY
     cosc_int32 array_start = 0;
+    cosc_int32 payload = 0;
 #endif
     if (types_n <= 0 || *types == 0)
     {
@@ -1808,7 +1809,6 @@ cosc_int32 cosc_write_values(
     }
     if (*types == ',')
         tlen++;
-    cosc_int32 payload = 0;
     while (tlen < types_n && types[tlen] != 0)
     {
         cosc_int32 sz;
@@ -1858,7 +1858,9 @@ cosc_int32 cosc_write_values(
         tlen++;
         if (sz > 0)
         {
+#ifndef COSC_NOARRAY
             payload++;
+#endif
             vlen++;
         }
     }
@@ -1884,6 +1886,8 @@ cosc_int32 cosc_read_values(
     cosc_int32 tlen = 0, vlen = 0, req = 0;
 #ifndef COSC_NOARRAY
     cosc_int32 array_start = 0;
+    cosc_int32 payload = 0;
+    (void)exit_early;
 #endif
     if (types_n <= 0 || *types == 0)
     {
@@ -1892,7 +1896,6 @@ cosc_int32 cosc_read_values(
     }
     if (*types == ',')
         tlen++;
-    cosc_int32 payload = 0;
     while (tlen < types_n && types[tlen] != 0)
     {
         cosc_int32 sz;
@@ -1942,7 +1945,9 @@ cosc_int32 cosc_read_values(
         tlen++;
         if (sz > 0)
         {
+#ifndef COSC_NOARRAY
             payload++;
+#endif
             vlen++;
         }
     }
@@ -2020,7 +2025,11 @@ cosc_int32 cosc_read_message(
 )
 {
     cosc_int32 req = 0, sz;
+#ifdef __cplusplus
+    struct cosc_message tmp_message{};
+#else
     struct cosc_message tmp_message = {0};
+#endif
     if (!message)
         message = &tmp_message;
     sz = cosc_read_signature(
@@ -3074,16 +3083,18 @@ cosc_int32 cosc_reader_end_message(
     if (serial->level < 0 || serial->levels[serial->level].type != COSC_LEVEL_TYPE_MESSAGE)
         return COSC_ELEVELTYPE;
     cosc_int32 add = 0;
-    cosc_int32 t, counter = 0;
+    cosc_int32 t;
     while (serial->levels[serial->level].size < serial->levels[serial->level].size_max
            && (t = cosc_serial_get_msgtype(serial)) != 0)
     {
+        cosc_int32 before = serial->levels[serial->level].size;
         if (!exit_early)
         {
             if (t == ']')
             {
-                cosc_reader_repeat(serial);
-                counter++;
+                cosc_int32 ret = cosc_reader_repeat(serial);
+                if (ret < 0)
+                    return ret;
             }
         }
         else if (t == '[' || t == ']')
@@ -3092,6 +3103,21 @@ cosc_int32 cosc_reader_end_message(
         if (sz < 0)
             return sz;
         add += sz;
+        if (!exit_early && t == ']' && serial->levels[serial->level].size == before)
+        {
+            cosc_int32 zero_only = 1;
+            while ((t = cosc_serial_get_msgtype(serial)) > 0 && t != ']')
+            {
+                if (t != 'T' && t != 'F' && t != 'N' && t != 'I')
+                {
+                    zero_only = 0;
+                    break;
+                }
+                cosc_serial_next_msgtype(serial);
+            }
+            if (zero_only && t == ']')
+                cosc_serial_next_msgtype(serial);
+        }
     }
     cosc_serial_end_level(serial);
     return add;
